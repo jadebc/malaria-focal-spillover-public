@@ -1,0 +1,153 @@
+
+R version 4.1.0 (2021-05-18) -- "Camp Pontanezen"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> ################################################
+> # Spillover effects of reactive, focal malaria 
+> # interventions
+> 
+> # Namibia trial
+> # Combine incidence HTMLE estimates
+> # for primary and sensitivity analyses
+> ################################################ 
+> library(purrr)
+Warning message:
+package ‘purrr’ was built under R version 4.1.2 
+> 
+> rm(list=ls())
+> source(paste0(here::here(), "/0-config.R"))
+Loading required package: sp
+rgdal: version: 1.5-23, (SVN revision 1121)
+Geospatial Data Abstraction Library extensions to R successfully loaded
+Loaded GDAL runtime: GDAL 3.2.1, released 2020/12/29
+Path to GDAL shared files: /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/gdal
+GDAL binary built with GEOS: TRUE 
+Loaded PROJ runtime: Rel. 7.2.1, January 1st, 2021, [PJ_VERSION: 721]
+Path to PROJ shared files: /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/proj
+PROJ CDN enabled: FALSE
+Linking to sp version:1.4-5
+To mute warnings of possible GDAL/OSR exportToProj4() degradation,
+use options("rgdal_show_exportToProj4_warnings"="none") before loading rgdal.
+Overwritten PROJ_LIB was /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/proj
+
+Attaching package: ‘lubridate’
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+
+Attaching package: ‘reshape2’
+
+The following object is masked from ‘package:tidyr’:
+
+    smiths
+
+
+Attaching package: ‘data.table’
+
+The following objects are masked from ‘package:reshape2’:
+
+    dcast, melt
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:data.table’:
+
+    between, first, last
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+Registered S3 method overwritten by 'GGally':
+  method from   
+  +.gg   ggplot2
+Warning messages:
+1: package ‘ggplot2’ was built under R version 4.1.2 
+2: package ‘tidyr’ was built under R version 4.1.2 
+3: package ‘stringr’ was built under R version 4.1.2 
+4: package ‘dplyr’ was built under R version 4.1.2 
+> 
+> # define file root names --------------------------------------------------------
+> file_list <- c("namibia_htmle_inc_direct_hm", "namibia_htmle_inc_direct_mosq", 
++                "namibia_htmle_inc_direct_human", "namibia_htmle_inc_spillover_hm", 
++                "namibia_htmle_inc_spillover_mosq", "namibia_htmle_inc_spillover_human", 
++                "namibia_htmle_inc_total_hm", "namibia_htmle_inc_total_mosq", 
++                "namibia_htmle_inc_total_human")
+> 
+> # sensitivity analysis: no overlap of target --------------------------------------------------------
+> files_sens_nooverlap_target <- paste0(file_list, "_sens_nooverlap_target.RDS")
+> estimates_sens_nooverlap_target_list <- lapply(files_sens_nooverlap_target, read_file_results, both_obs=F)
+> estimates_sens_nooverlap_target <- bind_rows(estimates_sens_nooverlap_target_list)
+> saveRDS(estimates_sens_nooverlap_target, file = paste0(results_path, "namibia_htmle_inc_all_sens_nooverlap_target.RDS"))
+> 
+> # sensitivity analysis: no overlap of spill --------------------------------------------------------
+> # human direct: data too sparse to fit model
+> file_list_no_spill <- file_list[-which("namibia_htmle_inc_direct_human" == file_list)]
+> files_sens_nooverlap_spill <- paste0(file_list_no_spill, "_sens_nooverlap_spill.RDS")
+> estimates_sens_nooverlap_spill_list <- lapply(files_sens_nooverlap_spill, read_file_results, both_obs=F)
+> estimates_sens_nooverlap_spill <- bind_rows(estimates_sens_nooverlap_spill_list)
+> saveRDS(estimates_sens_nooverlap_spill, file = paste0(results_path, "namibia_htmle_inc_all_sens_nooverlap_spill.RDS"))
+> 
+> # sensitivity analysis: 2km spillover zone --------------------------------------------------------
+> files_sens_spzone_2km <- paste0(file_list, "_sens_spzone_2km.RDS")
+> # drop direct effects
+> files_sens_spzone_2km <- files_sens_spzone_2km[-grep("direct", files_sens_spzone_2km)]
+> estimates_sens_spzone_2km_list <- lapply(files_sens_spzone_2km, read_file_results, both_obs=F)
+> estimates_sens_spzone_2km <- bind_rows(estimates_sens_spzone_2km_list)
+> saveRDS(estimates_sens_spzone_2km, file = paste0(results_path, "namibia_htmle_inc_all_sens_spzone_2km.RDS"))
+> 
+> # sensitivity analysis: 3km spillover zone --------------------------------------------------------
+> files_sens_spzone_3km <- paste0(file_list, "_sens_spzone_3km.RDS")
+> # drop direct effects
+> files_sens_spzone_3km <- files_sens_spzone_3km[-grep("direct", files_sens_spzone_3km)]
+> estimates_sens_spzone_3km_list <- lapply(files_sens_spzone_3km, read_file_results, both_obs=F)
+> estimates_sens_spzone_3km <- bind_rows(estimates_sens_spzone_3km_list)
+> saveRDS(estimates_sens_spzone_3km, file = paste0(results_path, "namibia_htmle_inc_all_sens_spzone_3km.RDS"))
+> 
+> # sensitivity analysis: different observation period --------------------------------------------------------
+> # mosq and hm direct: data too sparse to fit model
+> file_list_obs <- file_list[-which("namibia_htmle_inc_direct_human" == file_list)]
+> file_list_obs <- file_list_obs[-which("namibia_htmle_inc_direct_mosq" == file_list_obs)]
+> file_list_obs <- file_list_obs[-which("namibia_htmle_inc_direct_hm" == file_list_obs)]
+> files_sens_obs <- paste0(file_list_obs, "_sens_obs.RDS")
+> estimates_sens_obs_list <- lapply(files_sens_obs, read_file_results, both_obs=F)
+> estimates_sens_obs <- bind_rows(estimates_sens_obs_list)
+> saveRDS(estimates_sens_obs, file = paste0(results_path, "namibia_htmle_inc_all_sens_obs.RDS"))
+> 
+> 
+> 
+> 
+> proc.time()
+   user  system elapsed 
+  2.353   0.213   2.736 

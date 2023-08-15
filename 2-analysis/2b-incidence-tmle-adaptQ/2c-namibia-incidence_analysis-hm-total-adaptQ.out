@@ -1,0 +1,362 @@
+
+R version 4.0.2 (2020-06-22) -- "Taking Off Again"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> ################################################
+> # Spillover effects of reactive, focal malaria 
+> # interventions
+> 
+> # Namibia trial
+> # Primary analysis: incidence
+> # Data adaptively choose if Q is 
+> # individual or cohort level model 
+> ################################################ 
+> rm(list=ls())
+> library(sl3)
+> library(tmle3)
+> library(origami)
+origami v1.0.5: Generalized Framework for Cross-Validation
+> library(SuperLearner)
+Loading required package: nnls
+Loading required package: gam
+Loading required package: splines
+Loading required package: foreach
+Loaded gam 1.20
+
+Super Learner
+Version: 2.0-28
+Package created on 2021-05-04
+
+> library(glmnet)
+Loading required package: Matrix
+Loaded glmnet 4.1-2
+> library(gam)
+> library(xgboost)
+> library(GGally)
+Loading required package: ggplot2
+Registered S3 method overwritten by 'GGally':
+  method from   
+  +.gg   ggplot2
+> 
+> source(paste0(here::here(), "/0-config.R"))
+Loading required package: sp
+Please note that rgdal will be retired by the end of 2023,
+plan transition to sf/stars/terra functions using GDAL and PROJ
+at your earliest convenience.
+
+rgdal: version: 1.5-28, (SVN revision 1158)
+Geospatial Data Abstraction Library extensions to R successfully loaded
+Loaded GDAL runtime: GDAL 3.4.1, released 2021/12/27
+Path to GDAL shared files: /share/software/user/open/gdal/3.4.1/share/gdal
+GDAL binary built with GEOS: FALSE 
+Loaded PROJ runtime: Rel. 8.2.1, January 1st, 2022, [PJ_VERSION: 821]
+Path to PROJ shared files: /home/users/jadebc/.local/share/proj:/share/software/user/open/proj/8.2.1/share/proj:/share/software/user/open/proj/8.2.1/share/proj
+PROJ CDN enabled: FALSE
+Linking to sp version:1.4-5
+To mute warnings of possible GDAL/OSR exportToProj4() degradation,
+use options("rgdal_show_exportToProj4_warnings"="none") before loading sp or rgdal.
+
+Attaching package: ‘tidyr’
+
+The following objects are masked from ‘package:Matrix’:
+
+    expand, pack, unpack
+
+
+Attaching package: ‘lubridate’
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+
+Attaching package: ‘reshape2’
+
+The following object is masked from ‘package:tidyr’:
+
+    smiths
+
+
+Attaching package: ‘purrr’
+
+The following objects are masked from ‘package:foreach’:
+
+    accumulate, when
+
+
+Attaching package: ‘data.table’
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+The following objects are masked from ‘package:reshape2’:
+
+    dcast, melt
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:data.table’:
+
+    between, first, last
+
+The following object is masked from ‘package:xgboost’:
+
+    slice
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+> 
+> # load data ---------------------------------------
+> data_hm_list <- readRDS(namibia_hm_process_path)
+> 
+> # load covariate list ---------------------------------------
+> covarname <- readRDS(namibia_inc_covar_path)
+> covarname_g = c("pre_spray_cover", "pre_incidence", "pre_rainfall",
++                 "pop_size_ea")
+> covarname_Q = covarname[!covarname %in% c(covarname_g, "pre_evi", "ea_elevation","surface_temp")]
+> 
+> # SuperLearner set up ---------------------------------------
+> source(paste0(here::here(), '/2-analysis/0-namibia-incidence-learners.R'))
+> 
+> # Run hTMLE - Total effect ---------------------------------------
+> 
+> 
+> ## Human & mosquito ---------------------------------------
+> 
+> res_total_hm <- list()
+> set.seed(123)
+> res_total_hm <- lapply(data_hm_list, function(x)
++   choose_Qlevel(df = x,
++           effecttype = 'total',
++           dependency = TRUE, # TRUE if we want CIs adjusted for dependency
++           unadj_est = FALSE, # TRUE if we want a unadjusted estimate
++           y_l = 0,
++           y_u = 1,
++           covarname_Q = covarname_Q,    # set of names for adjustment variables
++           SL_lib_Q = SL_lib_Q,
++           SL_lib_adaQ = SL_lib_simple, # need to specify if for Qlevel = "adaptive"
++           SL_lib_depen = SL_lib_simple, # need to specify if dependency = T
++           verbose = FALSE,
++           reservoir_name = "Human & mosquito",
++           Vfolds = 30)
++ )
+[1] "Covariate screening ---------------------------------"
+Loading required package: lmtest
+Loading required package: zoo
+
+Attaching package: ‘zoo’
+
+The following objects are masked from ‘package:base’:
+
+    as.Date, as.Date.numeric
+
+
+Likelihood Ratio Test P-values:
+                             P-value
+dist_to_index                0.00670
+pop_500m_cat                 0.00000
+pop_1km_cat                  0.00004
+pop_2km_cat                  0.00000
+pop_3km_cat                  0.03861
+sex                          0.00000
+dist_hh_cat                  0.00000
+dist_hf_cat                  0.00000
+pop_size_cohort_cat          0.00000
+Ntx_cat                      0.00067
+tx_cov_cohort_cat            0.00001
+high_season                  0.00008
+prop_prev_tx_cat             0.00000
+pre_int_3000_cat             0.00003
+pre_int_2000_cat             0.00000
+pre_int_1000_cat             0.00000
+pre_int_500_cat              0.00000
+n_int_pre_recei              0.00000
+pre_int_propdiffarm_500_cat  0.00020
+pre_int_propdiffarm_1000_cat 0.00000
+pre_int_propdiffarm_2000     0.00003
+pre_int_propdiffarm_3000_cat 0.03047
+delta_age                    0.00000
+age                          0.00026
+delta_response_time          0.98340
+response_time_cat            0.00000
+delta_age.1                  0.00000
+delta_response_time.1        0.98340
+delta_dist_index_quant       0.71121
+
+
+Covariates selected (P<0.2):
+                                   P-value
+dist_to_index                 6.701568e-03
+pop_500m_cat                  1.868329e-08
+pop_1km_cat                   3.990794e-05
+pop_2km_cat                   3.637881e-15
+pop_3km_cat                   3.861198e-02
+sex                           9.064016e-07
+dist_hh_cat                   6.427908e-18
+dist_hf_cat                   2.131399e-45
+pop_size_cohort_cat           3.383094e-12
+Ntx_cat                       6.665584e-04
+tx_cov_cohort_cat             9.592319e-06
+high_season                   7.572105e-05
+prop_prev_tx_cat              1.927136e-64
+pre_int_3000_cat              2.878349e-05
+pre_int_2000_cat              7.389598e-17
+pre_int_1000_cat              7.213280e-41
+pre_int_500_cat               8.260964e-09
+n_int_pre_recei               6.502723e-48
+pre_int_propdiffarm_500_cat   2.034457e-04
+pre_int_propdiffarm_1000_cat  2.644261e-30
+pre_int_propdiffarm_2000      2.998993e-05
+pre_int_propdiffarm_3000_cat  3.047227e-02
+delta_age                    2.555208e-101
+age                           2.562588e-04
+response_time_cat             2.137396e-47
+delta_age.1                  2.555208e-101
+[1] "===== variables excluded after lmtest ===== "
+[1] "delta_response_time"    "delta_dist_index_quant"
+[1] "===== variables excluded after sparsity check ===== "
+character(0)
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+ [1] "dist_to_index"                "pop_500m_cat"                
+ [3] "pop_1km_cat"                  "pop_2km_cat"                 
+ [5] "pop_3km_cat"                  "sex"                         
+ [7] "dist_hh_cat"                  "dist_hf_cat"                 
+ [9] "pop_size_cohort_cat"          "Ntx_cat"                     
+[11] "tx_cov_cohort_cat"            "high_season"                 
+[13] "prop_prev_tx_cat"             "pre_int_3000_cat"            
+[15] "pre_int_2000_cat"             "pre_int_1000_cat"            
+[17] "pre_int_500_cat"              "n_int_pre_recei"             
+[19] "pre_int_propdiffarm_500_cat"  "pre_int_propdiffarm_1000_cat"
+[21] "pre_int_propdiffarm_2000"     "pre_int_propdiffarm_3000_cat"
+[23] "delta_age"                    "age"                         
+[25] "response_time_cat"           
+7.091 sec elapsed
+[1] "Choose Qlevel ---------------------------------"
+7340.379 sec elapsed
+[1] "Data-adaptive Q model selection result: cohort level"
+[1] "Covariate screening ---------------------------------"
+
+Likelihood Ratio Test P-values:
+                             P-value
+dist_to_index                0.03017
+pop_500m_cat                 0.00001
+pop_1km_cat                  0.00030
+pop_2km_cat                  0.00000
+pop_3km_cat                  0.04183
+sex                          0.00017
+dist_hh_cat                  0.00000
+dist_hf_cat                  0.00000
+pop_size_cohort_cat          0.00000
+Ntx_cat                      0.00000
+tx_cov_cohort_cat            0.00000
+high_season                  0.00000
+prop_prev_tx_cat             0.00000
+pre_int_3000_cat             0.15508
+pre_int_2000_cat             0.00000
+pre_int_1000_cat             0.00000
+pre_int_500_cat              0.08992
+n_int_pre_recei              0.00000
+pre_int_propdiffarm_500_cat  0.00112
+pre_int_propdiffarm_1000_cat 0.00000
+pre_int_propdiffarm_2000     0.14498
+pre_int_propdiffarm_3000_cat 0.45447
+delta_age                    0.00000
+age                          0.01378
+delta_response_time          0.74062
+response_time_cat            0.00000
+delta_age.1                  0.00000
+delta_response_time.1        0.74062
+delta_dist_index_quant       0.83579
+
+
+Covariates selected (P<0.2):
+                                  P-value
+dist_to_index                3.016787e-02
+pop_500m_cat                 7.407509e-06
+pop_1km_cat                  2.962490e-04
+pop_2km_cat                  2.640554e-09
+pop_3km_cat                  4.183117e-02
+sex                          1.743764e-04
+dist_hh_cat                  2.083069e-17
+dist_hf_cat                  2.757048e-37
+pop_size_cohort_cat          2.393910e-09
+Ntx_cat                      4.896412e-06
+tx_cov_cohort_cat            3.169764e-07
+high_season                  4.749627e-11
+prop_prev_tx_cat             2.745357e-28
+pre_int_3000_cat             1.550829e-01
+pre_int_2000_cat             3.655304e-07
+pre_int_1000_cat             1.802484e-17
+pre_int_500_cat              8.992467e-02
+n_int_pre_recei              2.922296e-28
+pre_int_propdiffarm_500_cat  1.123711e-03
+pre_int_propdiffarm_1000_cat 2.121658e-21
+pre_int_propdiffarm_2000     1.449827e-01
+delta_age                    8.447166e-69
+age                          1.377963e-02
+response_time_cat            1.592597e-29
+delta_age.1                  8.447166e-69
+[1] "===== variables excluded after lmtest ===== "
+[1] "pre_int_propdiffarm_3000_cat" "delta_response_time"         
+[3] "delta_dist_index_quant"      
+[1] "===== variables excluded after sparsity check ===== "
+character(0)
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+ [1] "dist_to_index"                "pop_500m_cat"                
+ [3] "pop_1km_cat"                  "pop_2km_cat"                 
+ [5] "pop_3km_cat"                  "sex"                         
+ [7] "dist_hh_cat"                  "dist_hf_cat"                 
+ [9] "pop_size_cohort_cat"          "Ntx_cat"                     
+[11] "tx_cov_cohort_cat"            "high_season"                 
+[13] "prop_prev_tx_cat"             "pre_int_3000_cat"            
+[15] "pre_int_2000_cat"             "pre_int_1000_cat"            
+[17] "pre_int_500_cat"              "n_int_pre_recei"             
+[19] "pre_int_propdiffarm_500_cat"  "pre_int_propdiffarm_1000_cat"
+[21] "pre_int_propdiffarm_2000"     "delta_age"                   
+[23] "age"                          "response_time_cat"           
+5.203 sec elapsed
+[1] "Choose Qlevel ---------------------------------"
+7241.867 sec elapsed
+[1] "Data-adaptive Q model selection result: cohort level"
+> 
+> names(res_total_hm) = c("Long","Short")
+> saveRDS(res_total_hm, file = paste0(results_path, "namibia_htmle_inc_total_hm_adaptQ.RDS"))
+> 
+> 
+> 
+> 
+> proc.time()
+    user   system  elapsed 
+19693.48 13652.82 14604.14 

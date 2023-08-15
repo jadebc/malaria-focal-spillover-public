@@ -1,0 +1,837 @@
+
+R version 4.1.0 (2021-05-18) -- "Camp Pontanezen"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> ################################################
+> # Spillover effects of reactive, focal malaria 
+> # interventions
+> 
+> # Namibia trial
+> # Prevalence analysis
+> # Serological outcomes
+> ################################################  
+> rm(list=ls())
+> source(paste0(here::here(), "/0-config.R"))
+Loading required package: sp
+rgdal: version: 1.5-23, (SVN revision 1121)
+Geospatial Data Abstraction Library extensions to R successfully loaded
+Loaded GDAL runtime: GDAL 3.2.1, released 2020/12/29
+Path to GDAL shared files: /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/gdal
+GDAL binary built with GEOS: TRUE 
+Loaded PROJ runtime: Rel. 7.2.1, January 1st, 2021, [PJ_VERSION: 721]
+Path to PROJ shared files: /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/proj
+PROJ CDN enabled: FALSE
+Linking to sp version:1.4-5
+To mute warnings of possible GDAL/OSR exportToProj4() degradation,
+use options("rgdal_show_exportToProj4_warnings"="none") before loading rgdal.
+Overwritten PROJ_LIB was /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/proj
+
+Attaching package: ‘lubridate’
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+
+Attaching package: ‘reshape2’
+
+The following object is masked from ‘package:tidyr’:
+
+    smiths
+
+
+Attaching package: ‘data.table’
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+The following objects are masked from ‘package:reshape2’:
+
+    dcast, melt
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:data.table’:
+
+    between, first, last
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+Registered S3 method overwritten by 'GGally':
+  method from   
+  +.gg   ggplot2
+Warning messages:
+1: package ‘ggplot2’ was built under R version 4.1.2 
+2: package ‘tidyr’ was built under R version 4.1.2 
+3: package ‘purrr’ was built under R version 4.1.2 
+4: package ‘stringr’ was built under R version 4.1.2 
+5: package ‘dplyr’ was built under R version 4.1.2 
+> source(paste0(here::here(), "/0-base-functions/1-helper-functions-covar.R"))
+> library(sl3)
+> library(tmle3)
+> library(origami)
+origami v1.0.7: Generalized Framework for Cross-Validation
+> library(SuperLearner)
+Loading required package: nnls
+Loading required package: gam
+Loading required package: splines
+Loading required package: foreach
+
+Attaching package: ‘foreach’
+
+The following objects are masked from ‘package:purrr’:
+
+    accumulate, when
+
+Loaded gam 1.20
+
+Super Learner
+Version: 2.0-28.1
+Package created on 2021-05-04
+
+> library(glmnet)
+Loading required package: Matrix
+
+Attaching package: ‘Matrix’
+
+The following objects are masked from ‘package:tidyr’:
+
+    expand, pack, unpack
+
+Loaded glmnet 4.1-2
+> library(gam)
+> library(xgboost)
+
+Attaching package: ‘xgboost’
+
+The following object is masked from ‘package:dplyr’:
+
+    slice
+
+> library(GGally)
+> library(readxl)
+> 
+> # load and process analysis dataset ---------------------------------------------------
+> xs_clean <- readRDS(namibia_analysis_prev) %>% arrange(eaid, hhid, iid)
+> raw_data <- read_excel(namibia_raw_sero_path)
+> 
+> sero_cols <- raw_data %>% dplyr::select(eaid, hhid, sample, Etramp5.Ag1, Etramp5.Ag1_pos) %>% 
++   rename(iid = sample) %>% 
++   arrange(eaid, hhid, iid) %>% 
++   distinct()
+> 
+> sero <- full_join(xs_clean, sero_cols, by = c("eaid", "hhid", "iid"))
+> 
+> # drop if no spillover zone information
+> sero <- sero %>% filter(!is.na(spall))
+> 
+> # drop if no serology
+> sero <- sero %>% filter(!is.na(Etramp5.Ag1))
+> 
+> 
+> # specify the variables used for identification, but not for estimation
+> dropme <- c("eaid", "hhid", "xsid", "iid", "latitude", "longitude",
++             "date", "spillover_zone")
+> 
+> sero <- sero[,!colnames(sero) %in% dropme] 
+> 
+> # run tmle function ---------------------------------------------------
+> reservoir_list = c("human", "mosquito", "human & mosquito")
+> 
+> ## human reservoir ---- 
+> set.seed(123)
+> res_de <- lapply(reservoir_list, function(x) fit_tmle_prev(
++   data = sero, parameter = "Direct effect", reservoir = x, yname= "Etramp5.Ag1_pos")) 
+[1] "Direct effect- human- Etramp5.Ag1_pos---------"
+Loading required package: lmtest
+Loading required package: zoo
+
+Attaching package: ‘zoo’
+
+The following objects are masked from ‘package:base’:
+
+    as.Date, as.Date.numeric
+
+
+Likelihood Ratio Test P-values:
+                       P-value
+age                    0.00000
+gender                 0.07701
+traveled_recently      0.73028
+occupation             0.00870
+sleep_net              0.79218
+slept_net_yest         0.86860
+dist_popN_target       0.02896
+dist_arm_target        0.37271
+dist_Ntx_target        0.07109
+dist_Ntx_sametx_target 0.08004
+dist_Ntx_difftx_target 0.68635
+dist_popN_1km          0.25831
+dist_Ntx_1km           0.36419
+dist_Ntx_sametx_1km    0.17054
+dist_Ntx_difftx_1km    0.80094
+dist_popN_2km          0.00030
+dist_Ntx_2km           0.00198
+dist_Ntx_sametx_2km    0.00092
+dist_Ntx_difftx_2km    0.29385
+dist_popN_3km          0.06314
+dist_Ntx_3km           0.00495
+dist_Ntx_sametx_3km    0.00049
+dist_Ntx_difftx_3km    0.37949
+pre_incidence          0.01814
+pre_spray_cover        0.86281
+pop_size_ea            0.11291
+dist_hh                0.03310
+dist_hf                0.54022
+pre_rainfall           0.52330
+pre_evi                0.09609
+ea_elevation           0.65455
+surface_temp           0.00001
+slept_outdoors         0.38338
+dist_arm_1km           0.23284
+dist_arm_2km           0.78333
+dist_arm_3km           0.21376
+delta_slept_outdoors   0.60865
+delta_dist_arm_1km     0.00091
+delta_dist_arm_2km     0.11655
+delta_dist_arm_3km     0.63451
+
+
+Covariates selected (P<0.2):
+                            P-value
+age                    4.166898e-06
+gender                 7.701401e-02
+occupation             8.701755e-03
+dist_popN_target       2.896444e-02
+dist_Ntx_target        7.109121e-02
+dist_Ntx_sametx_target 8.004433e-02
+dist_Ntx_sametx_1km    1.705395e-01
+dist_popN_2km          3.026135e-04
+dist_Ntx_2km           1.978382e-03
+dist_Ntx_sametx_2km    9.206860e-04
+dist_popN_3km          6.314106e-02
+dist_Ntx_3km           4.953342e-03
+dist_Ntx_sametx_3km    4.942993e-04
+pre_incidence          1.814017e-02
+pop_size_ea            1.129089e-01
+dist_hh                3.310375e-02
+pre_evi                9.608651e-02
+surface_temp           1.243269e-05
+delta_dist_arm_1km     9.054422e-04
+delta_dist_arm_2km     1.165459e-01
+[1] "===== variables excluded after lmtest ===== "
+ [1] "traveled_recently"      "sleep_net"              "slept_net_yest"        
+ [4] "dist_arm_target"        "dist_Ntx_difftx_target" "dist_popN_1km"         
+ [7] "dist_Ntx_1km"           "dist_Ntx_difftx_1km"    "dist_Ntx_difftx_2km"   
+[10] "dist_Ntx_difftx_3km"    "pre_spray_cover"        "dist_hf"               
+[13] "pre_rainfall"           "ea_elevation"           "slept_outdoors"        
+[16] "dist_arm_1km"           "dist_arm_2km"           "dist_arm_3km"          
+[19] "delta_slept_outdoors"   "delta_dist_arm_3km"    
+[1] "===== variables excluded after sparsity check ===== "
+[1] "dist_Ntx_difftx_target"
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+ [1] "age"                    "gender"                 "occupation"            
+ [4] "dist_popN_target"       "dist_Ntx_target"        "dist_Ntx_sametx_target"
+ [7] "dist_Ntx_sametx_1km"    "dist_popN_2km"          "dist_Ntx_2km"          
+[10] "dist_Ntx_sametx_2km"    "dist_popN_3km"          "dist_Ntx_3km"          
+[13] "dist_Ntx_sametx_3km"    "pre_incidence"          "pop_size_ea"           
+[16] "dist_hh"                "pre_evi"                "surface_temp"          
+[19] "delta_dist_arm_1km"     "delta_dist_arm_2km"    
+[1] "Direct effect- mosquito- Etramp5.Ag1_pos---------"
+
+Likelihood Ratio Test P-values:
+                       P-value
+age                    0.00000
+gender                 0.07701
+traveled_recently      0.73028
+occupation             0.00870
+sleep_net              0.79218
+slept_net_yest         0.86860
+dist_popN_target       0.02896
+dist_arm_target        0.37271
+dist_Ntx_target        0.07109
+dist_Ntx_sametx_target 0.08004
+dist_Ntx_difftx_target 0.68635
+dist_popN_1km          0.25831
+dist_Ntx_1km           0.36419
+dist_Ntx_sametx_1km    0.17054
+dist_Ntx_difftx_1km    0.80094
+dist_popN_2km          0.00030
+dist_Ntx_2km           0.00198
+dist_Ntx_sametx_2km    0.00092
+dist_Ntx_difftx_2km    0.29385
+dist_popN_3km          0.06314
+dist_Ntx_3km           0.00495
+dist_Ntx_sametx_3km    0.00049
+dist_Ntx_difftx_3km    0.37949
+pre_incidence          0.01814
+pre_spray_cover        0.86281
+pop_size_ea            0.11291
+dist_hh                0.03310
+dist_hf                0.54022
+pre_rainfall           0.52330
+pre_evi                0.09609
+ea_elevation           0.65455
+surface_temp           0.00001
+slept_outdoors         0.38338
+dist_arm_1km           0.23284
+dist_arm_2km           0.78333
+dist_arm_3km           0.21376
+delta_slept_outdoors   0.60865
+delta_dist_arm_1km     0.00091
+delta_dist_arm_2km     0.11655
+delta_dist_arm_3km     0.63451
+
+
+Covariates selected (P<0.2):
+                            P-value
+age                    4.166898e-06
+gender                 7.701401e-02
+occupation             8.701755e-03
+dist_popN_target       2.896444e-02
+dist_Ntx_target        7.109121e-02
+dist_Ntx_sametx_target 8.004433e-02
+dist_Ntx_sametx_1km    1.705395e-01
+dist_popN_2km          3.026135e-04
+dist_Ntx_2km           1.978382e-03
+dist_Ntx_sametx_2km    9.206860e-04
+dist_popN_3km          6.314106e-02
+dist_Ntx_3km           4.953342e-03
+dist_Ntx_sametx_3km    4.942993e-04
+pre_incidence          1.814017e-02
+pop_size_ea            1.129089e-01
+dist_hh                3.310375e-02
+pre_evi                9.608651e-02
+surface_temp           1.243269e-05
+delta_dist_arm_1km     9.054422e-04
+delta_dist_arm_2km     1.165459e-01
+[1] "===== variables excluded after lmtest ===== "
+ [1] "traveled_recently"      "sleep_net"              "slept_net_yest"        
+ [4] "dist_arm_target"        "dist_Ntx_difftx_target" "dist_popN_1km"         
+ [7] "dist_Ntx_1km"           "dist_Ntx_difftx_1km"    "dist_Ntx_difftx_2km"   
+[10] "dist_Ntx_difftx_3km"    "pre_spray_cover"        "dist_hf"               
+[13] "pre_rainfall"           "ea_elevation"           "slept_outdoors"        
+[16] "dist_arm_1km"           "dist_arm_2km"           "dist_arm_3km"          
+[19] "delta_slept_outdoors"   "delta_dist_arm_3km"    
+[1] "===== variables excluded after sparsity check ===== "
+[1] "dist_Ntx_difftx_target"
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+ [1] "age"                    "gender"                 "occupation"            
+ [4] "dist_popN_target"       "dist_Ntx_target"        "dist_Ntx_sametx_target"
+ [7] "dist_Ntx_sametx_1km"    "dist_popN_2km"          "dist_Ntx_2km"          
+[10] "dist_Ntx_sametx_2km"    "dist_popN_3km"          "dist_Ntx_3km"          
+[13] "dist_Ntx_sametx_3km"    "pre_incidence"          "pop_size_ea"           
+[16] "dist_hh"                "pre_evi"                "surface_temp"          
+[19] "delta_dist_arm_1km"     "delta_dist_arm_2km"    
+[1] "Direct effect- human & mosquito- Etramp5.Ag1_pos---------"
+
+Likelihood Ratio Test P-values:
+                       P-value
+age                    0.00138
+gender                 0.65965
+traveled_recently      0.62563
+occupation             0.15540
+sleep_net              0.75592
+slept_net_yest         0.19082
+dist_popN_target       0.07640
+dist_arm_target        0.17701
+dist_Ntx_target        0.10445
+dist_Ntx_sametx_target 0.09816
+dist_Ntx_difftx_target 0.62155
+dist_popN_1km          0.71587
+dist_Ntx_1km           0.92529
+dist_Ntx_sametx_1km    0.59206
+dist_Ntx_difftx_1km    0.62660
+dist_popN_2km          0.00127
+dist_Ntx_2km           0.00133
+dist_Ntx_sametx_2km    0.00042
+dist_Ntx_difftx_2km    0.49360
+dist_popN_3km          0.00625
+dist_Ntx_3km           0.00144
+dist_Ntx_sametx_3km    0.00009
+dist_Ntx_difftx_3km    0.15897
+pre_incidence          0.01208
+pre_spray_cover        0.10443
+pop_size_ea            0.37771
+dist_hh                0.62557
+dist_hf                0.39446
+pre_rainfall           0.00488
+pre_evi                0.00047
+ea_elevation           0.71381
+surface_temp           0.00108
+slept_outdoors         0.74942
+dist_arm_1km           0.56775
+dist_arm_2km           0.70775
+dist_arm_3km           0.03109
+delta_slept_outdoors   0.28399
+delta_dist_arm_1km     0.18398
+delta_dist_arm_2km     0.14826
+delta_dist_arm_3km     0.64662
+
+
+Covariates selected (P<0.2):
+                            P-value
+age                    1.383706e-03
+occupation             1.553973e-01
+slept_net_yest         1.908219e-01
+dist_popN_target       7.640124e-02
+dist_arm_target        1.770056e-01
+dist_Ntx_target        1.044518e-01
+dist_Ntx_sametx_target 9.815761e-02
+dist_popN_2km          1.270236e-03
+dist_Ntx_2km           1.325414e-03
+dist_Ntx_sametx_2km    4.237323e-04
+dist_popN_3km          6.247671e-03
+dist_Ntx_3km           1.438328e-03
+dist_Ntx_sametx_3km    8.927859e-05
+dist_Ntx_difftx_3km    1.589666e-01
+pre_incidence          1.207592e-02
+pre_spray_cover        1.044283e-01
+pre_rainfall           4.878481e-03
+pre_evi                4.693451e-04
+surface_temp           1.075168e-03
+dist_arm_3km           3.109081e-02
+delta_dist_arm_1km     1.839783e-01
+delta_dist_arm_2km     1.482563e-01
+[1] "===== variables excluded after lmtest ===== "
+ [1] "gender"                 "traveled_recently"      "sleep_net"             
+ [4] "dist_Ntx_difftx_target" "dist_popN_1km"          "dist_Ntx_1km"          
+ [7] "dist_Ntx_sametx_1km"    "dist_Ntx_difftx_1km"    "dist_Ntx_difftx_2km"   
+[10] "pop_size_ea"            "dist_hh"                "dist_hf"               
+[13] "ea_elevation"           "slept_outdoors"         "dist_arm_1km"          
+[16] "dist_arm_2km"           "delta_slept_outdoors"   "delta_dist_arm_3km"    
+[1] "===== variables excluded after sparsity check ===== "
+[1] "dist_Ntx_difftx_target"
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+ [1] "age"                    "occupation"             "slept_net_yest"        
+ [4] "dist_popN_target"       "dist_arm_target"        "dist_Ntx_target"       
+ [7] "dist_Ntx_sametx_target" "dist_popN_2km"          "dist_Ntx_2km"          
+[10] "dist_Ntx_sametx_2km"    "dist_popN_3km"          "dist_Ntx_3km"          
+[13] "dist_Ntx_sametx_3km"    "dist_Ntx_difftx_3km"    "pre_incidence"         
+[16] "pre_spray_cover"        "pre_rainfall"           "pre_evi"               
+[19] "surface_temp"           "dist_arm_3km"           "delta_dist_arm_1km"    
+[22] "delta_dist_arm_2km"    
+Error in data.table::setnames(d_Xint, sapply(Xint, paste0, collapse = "_")) : 
+  Passed a vector of type 'list'. Needs to be type 'character'.
+Failed on chain
+> res_sp <- lapply(reservoir_list, function(x) fit_tmle_prev(
++   data = sero, parameter = "Spillover effect", reservoir = x, yname= "Etramp5.Ag1_pos")) 
+[1] "Spillover effect- human- Etramp5.Ag1_pos---------"
+
+Likelihood Ratio Test P-values:
+                       P-value
+age                    0.01351
+gender                 0.08106
+traveled_recently      0.33845
+occupation             0.24036
+sleep_net              0.63857
+slept_net_yest         0.62397
+dist_popN_target       1.00000
+dist_Ntx_target        1.00000
+dist_Ntx_sametx_target 1.00000
+dist_Ntx_difftx_target 1.00000
+dist_popN_1km          0.23080
+dist_Ntx_1km           0.21268
+dist_Ntx_sametx_1km    0.58444
+dist_Ntx_difftx_1km    0.19508
+dist_popN_2km          0.28345
+dist_Ntx_2km           0.31987
+dist_Ntx_sametx_2km    0.05134
+dist_Ntx_difftx_2km    0.14244
+dist_popN_3km          0.99879
+dist_Ntx_3km           0.63499
+dist_Ntx_sametx_3km    0.99400
+dist_Ntx_difftx_3km    0.51186
+pre_incidence          0.00027
+pre_spray_cover        0.08994
+pop_size_ea            0.00097
+dist_hh                0.19336
+dist_hf                0.05933
+pre_rainfall           0.00021
+pre_evi                0.15741
+ea_elevation           0.00173
+surface_temp           0.00042
+slept_outdoors         0.66385
+dist_arm_2km           0.21638
+dist_arm_3km           0.15030
+delta_slept_outdoors   0.47343
+delta_dist_arm_2km     0.26255
+delta_dist_arm_3km     0.81363
+
+
+Covariates selected (P<0.2):
+                         P-value
+age                 0.0135089562
+gender              0.0810639951
+dist_Ntx_difftx_1km 0.1950828757
+dist_Ntx_sametx_2km 0.0513398932
+dist_Ntx_difftx_2km 0.1424400443
+pre_incidence       0.0002652428
+pre_spray_cover     0.0899415947
+pop_size_ea         0.0009690364
+dist_hh             0.1933618195
+dist_hf             0.0593301004
+pre_rainfall        0.0002106135
+pre_evi             0.1574147182
+ea_elevation        0.0017327310
+surface_temp        0.0004179678
+dist_arm_3km        0.1502961531
+[1] "===== variables excluded after lmtest ===== "
+ [1] "traveled_recently"      "occupation"             "sleep_net"             
+ [4] "slept_net_yest"         "dist_popN_target"       "dist_Ntx_target"       
+ [7] "dist_Ntx_sametx_target" "dist_Ntx_difftx_target" "dist_popN_1km"         
+[10] "dist_Ntx_1km"           "dist_Ntx_sametx_1km"    "dist_popN_2km"         
+[13] "dist_Ntx_2km"           "dist_popN_3km"          "dist_Ntx_3km"          
+[16] "dist_Ntx_sametx_3km"    "dist_Ntx_difftx_3km"    "slept_outdoors"        
+[19] "dist_arm_2km"           "delta_slept_outdoors"   "delta_dist_arm_2km"    
+[22] "delta_dist_arm_3km"    
+[1] "===== variables excluded after sparsity check ===== "
+[1] "dist_popN_target"       "dist_Ntx_target"        "dist_Ntx_sametx_target"
+[4] "dist_Ntx_difftx_target"
+[1] "===== excluded constant variables ===== "
+[1] "dist_popN_target"       "dist_Ntx_target"        "dist_Ntx_sametx_target"
+[4] "dist_Ntx_difftx_target"
+[1] "===== variables selected in the end ===== "
+ [1] "age"                 "gender"              "dist_Ntx_difftx_1km"
+ [4] "dist_Ntx_sametx_2km" "dist_Ntx_difftx_2km" "pre_incidence"      
+ [7] "pre_spray_cover"     "pop_size_ea"         "dist_hh"            
+[10] "dist_hf"             "pre_rainfall"        "pre_evi"            
+[13] "ea_elevation"        "surface_temp"        "dist_arm_3km"       
+[1] "Warning: number of events per variable < 10"
+[1] "Spillover effect- mosquito- Etramp5.Ag1_pos---------"
+[1] "Spillover effect- human & mosquito- Etramp5.Ag1_pos---------"
+> res_te <- lapply(reservoir_list, function(x) fit_tmle_prev(
++   data = sero, parameter = "Total effect", reservoir = x, yname= "Etramp5.Ag1_pos")) 
+[1] "Total effect- human- Etramp5.Ag1_pos---------"
+
+Likelihood Ratio Test P-values:
+                       P-value
+age                    0.00000
+gender                 0.02851
+traveled_recently      0.93588
+occupation             0.03847
+sleep_net              0.73961
+slept_net_yest         0.95955
+dist_popN_target       0.01388
+dist_Ntx_target        0.03312
+dist_Ntx_sametx_target 0.03755
+dist_Ntx_difftx_target 0.64256
+dist_popN_1km          0.14128
+dist_Ntx_1km           0.19415
+dist_Ntx_sametx_1km    0.11766
+dist_Ntx_difftx_1km    0.84903
+dist_popN_2km          0.00012
+dist_Ntx_2km           0.00097
+dist_Ntx_sametx_2km    0.00023
+dist_Ntx_difftx_2km    0.35313
+dist_popN_3km          0.05977
+dist_Ntx_3km           0.00689
+dist_Ntx_sametx_3km    0.00103
+dist_Ntx_difftx_3km    0.41014
+pre_incidence          0.00273
+pre_spray_cover        0.82462
+pop_size_ea            0.00603
+dist_hh                0.01533
+dist_hf                0.20409
+pre_rainfall           0.46348
+pre_evi                0.30343
+ea_elevation           0.09147
+surface_temp           0.00000
+slept_outdoors         0.36770
+dist_arm_target        0.39461
+dist_arm_1km           0.24610
+dist_arm_2km           0.82050
+dist_arm_3km           0.08729
+delta_slept_outdoors   0.48523
+delta_dist_arm_target  0.24519
+delta_dist_arm_1km     0.00024
+delta_dist_arm_2km     0.10444
+delta_dist_arm_3km     0.60710
+
+
+Covariates selected (P<0.2):
+                            P-value
+age                    3.056098e-07
+gender                 2.850603e-02
+occupation             3.846714e-02
+dist_popN_target       1.388331e-02
+dist_Ntx_target        3.311973e-02
+dist_Ntx_sametx_target 3.754851e-02
+dist_popN_1km          1.412764e-01
+dist_Ntx_1km           1.941507e-01
+dist_Ntx_sametx_1km    1.176631e-01
+dist_popN_2km          1.221523e-04
+dist_Ntx_2km           9.702058e-04
+dist_Ntx_sametx_2km    2.262914e-04
+dist_popN_3km          5.977139e-02
+dist_Ntx_3km           6.887240e-03
+dist_Ntx_sametx_3km    1.026603e-03
+pre_incidence          2.729036e-03
+pop_size_ea            6.025690e-03
+dist_hh                1.532655e-02
+ea_elevation           9.147392e-02
+surface_temp           7.643329e-08
+dist_arm_3km           8.729333e-02
+delta_dist_arm_1km     2.415814e-04
+delta_dist_arm_2km     1.044429e-01
+[1] "===== variables excluded after lmtest ===== "
+ [1] "traveled_recently"      "sleep_net"              "slept_net_yest"        
+ [4] "dist_Ntx_difftx_target" "dist_Ntx_difftx_1km"    "dist_Ntx_difftx_2km"   
+ [7] "dist_Ntx_difftx_3km"    "pre_spray_cover"        "dist_hf"               
+[10] "pre_rainfall"           "pre_evi"                "slept_outdoors"        
+[13] "dist_arm_target"        "dist_arm_1km"           "dist_arm_2km"          
+[16] "delta_slept_outdoors"   "delta_dist_arm_target"  "delta_dist_arm_3km"    
+[1] "===== variables excluded after sparsity check ===== "
+[1] "dist_Ntx_difftx_target"
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+ [1] "age"                    "gender"                 "occupation"            
+ [4] "dist_popN_target"       "dist_Ntx_target"        "dist_Ntx_sametx_target"
+ [7] "dist_popN_1km"          "dist_Ntx_1km"           "dist_Ntx_sametx_1km"   
+[10] "dist_popN_2km"          "dist_Ntx_2km"           "dist_Ntx_sametx_2km"   
+[13] "dist_popN_3km"          "dist_Ntx_3km"           "dist_Ntx_sametx_3km"   
+[16] "pre_incidence"          "pop_size_ea"            "dist_hh"               
+[19] "ea_elevation"           "surface_temp"           "dist_arm_3km"          
+[22] "delta_dist_arm_1km"     "delta_dist_arm_2km"    
+[1] "Total effect- mosquito- Etramp5.Ag1_pos---------"
+
+Likelihood Ratio Test P-values:
+                       P-value
+age                    0.00000
+gender                 0.02851
+traveled_recently      0.93588
+occupation             0.03847
+sleep_net              0.73961
+slept_net_yest         0.95955
+dist_popN_target       0.01388
+dist_Ntx_target        0.03312
+dist_Ntx_sametx_target 0.03755
+dist_Ntx_difftx_target 0.64256
+dist_popN_1km          0.14128
+dist_Ntx_1km           0.19415
+dist_Ntx_sametx_1km    0.11766
+dist_Ntx_difftx_1km    0.84903
+dist_popN_2km          0.00012
+dist_Ntx_2km           0.00097
+dist_Ntx_sametx_2km    0.00023
+dist_Ntx_difftx_2km    0.35313
+dist_popN_3km          0.05977
+dist_Ntx_3km           0.00689
+dist_Ntx_sametx_3km    0.00103
+dist_Ntx_difftx_3km    0.41014
+pre_incidence          0.00273
+pre_spray_cover        0.82462
+pop_size_ea            0.00603
+dist_hh                0.01533
+dist_hf                0.20409
+pre_rainfall           0.46348
+pre_evi                0.30343
+ea_elevation           0.09147
+surface_temp           0.00000
+slept_outdoors         0.36770
+dist_arm_target        0.39461
+dist_arm_1km           0.24610
+dist_arm_2km           0.82050
+dist_arm_3km           0.08729
+delta_slept_outdoors   0.48523
+delta_dist_arm_target  0.24519
+delta_dist_arm_1km     0.00024
+delta_dist_arm_2km     0.10444
+delta_dist_arm_3km     0.60710
+
+
+Covariates selected (P<0.2):
+                            P-value
+age                    3.056098e-07
+gender                 2.850603e-02
+occupation             3.846714e-02
+dist_popN_target       1.388331e-02
+dist_Ntx_target        3.311973e-02
+dist_Ntx_sametx_target 3.754851e-02
+dist_popN_1km          1.412764e-01
+dist_Ntx_1km           1.941507e-01
+dist_Ntx_sametx_1km    1.176631e-01
+dist_popN_2km          1.221523e-04
+dist_Ntx_2km           9.702058e-04
+dist_Ntx_sametx_2km    2.262914e-04
+dist_popN_3km          5.977139e-02
+dist_Ntx_3km           6.887240e-03
+dist_Ntx_sametx_3km    1.026603e-03
+pre_incidence          2.729036e-03
+pop_size_ea            6.025690e-03
+dist_hh                1.532655e-02
+ea_elevation           9.147392e-02
+surface_temp           7.643329e-08
+dist_arm_3km           8.729333e-02
+delta_dist_arm_1km     2.415814e-04
+delta_dist_arm_2km     1.044429e-01
+[1] "===== variables excluded after lmtest ===== "
+ [1] "traveled_recently"      "sleep_net"              "slept_net_yest"        
+ [4] "dist_Ntx_difftx_target" "dist_Ntx_difftx_1km"    "dist_Ntx_difftx_2km"   
+ [7] "dist_Ntx_difftx_3km"    "pre_spray_cover"        "dist_hf"               
+[10] "pre_rainfall"           "pre_evi"                "slept_outdoors"        
+[13] "dist_arm_target"        "dist_arm_1km"           "dist_arm_2km"          
+[16] "delta_slept_outdoors"   "delta_dist_arm_target"  "delta_dist_arm_3km"    
+[1] "===== variables excluded after sparsity check ===== "
+[1] "dist_Ntx_difftx_target"
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+ [1] "age"                    "gender"                 "occupation"            
+ [4] "dist_popN_target"       "dist_Ntx_target"        "dist_Ntx_sametx_target"
+ [7] "dist_popN_1km"          "dist_Ntx_1km"           "dist_Ntx_sametx_1km"   
+[10] "dist_popN_2km"          "dist_Ntx_2km"           "dist_Ntx_sametx_2km"   
+[13] "dist_popN_3km"          "dist_Ntx_3km"           "dist_Ntx_sametx_3km"   
+[16] "pre_incidence"          "pop_size_ea"            "dist_hh"               
+[19] "ea_elevation"           "surface_temp"           "dist_arm_3km"          
+[22] "delta_dist_arm_1km"     "delta_dist_arm_2km"    
+[1] "Total effect- human & mosquito- Etramp5.Ag1_pos---------"
+
+Likelihood Ratio Test P-values:
+                       P-value
+age                    0.00019
+gender                 0.96101
+traveled_recently      0.96499
+occupation             0.34448
+sleep_net              0.74256
+slept_net_yest         0.30791
+dist_popN_target       0.01163
+dist_Ntx_target        0.01167
+dist_Ntx_sametx_target 0.01106
+dist_Ntx_difftx_target 0.72582
+dist_popN_1km          0.58691
+dist_Ntx_1km           0.29117
+dist_Ntx_sametx_1km    0.17050
+dist_Ntx_difftx_1km    0.81733
+dist_popN_2km          0.00027
+dist_Ntx_2km           0.00060
+dist_Ntx_sametx_2km    0.00015
+dist_Ntx_difftx_2km    0.50002
+dist_popN_3km          0.00881
+dist_Ntx_3km           0.00247
+dist_Ntx_sametx_3km    0.00112
+dist_Ntx_difftx_3km    0.12944
+pre_incidence          0.00411
+pre_spray_cover        0.24386
+pop_size_ea            0.07859
+dist_hh                0.76396
+dist_hf                0.77353
+pre_rainfall           0.05810
+pre_evi                0.00366
+ea_elevation           0.51180
+surface_temp           0.00025
+slept_outdoors         0.74999
+dist_arm_target        0.19833
+dist_arm_1km           0.69193
+dist_arm_2km           0.64526
+dist_arm_3km           0.01136
+delta_slept_outdoors   0.19891
+delta_dist_arm_target  0.02413
+delta_dist_arm_1km     0.01105
+delta_dist_arm_2km     0.27476
+delta_dist_arm_3km     0.73248
+
+
+Covariates selected (P<0.2):
+                            P-value
+age                    0.0001924292
+dist_popN_target       0.0116252326
+dist_Ntx_target        0.0116665183
+dist_Ntx_sametx_target 0.0110599635
+dist_Ntx_sametx_1km    0.1704952191
+dist_popN_2km          0.0002726566
+dist_Ntx_2km           0.0006046485
+dist_Ntx_sametx_2km    0.0001489134
+dist_popN_3km          0.0088056436
+dist_Ntx_3km           0.0024662809
+dist_Ntx_sametx_3km    0.0011169634
+dist_Ntx_difftx_3km    0.1294385145
+pre_incidence          0.0041062867
+pop_size_ea            0.0785911860
+pre_rainfall           0.0581023158
+pre_evi                0.0036588353
+surface_temp           0.0002547102
+dist_arm_target        0.1983286277
+dist_arm_3km           0.0113593641
+delta_slept_outdoors   0.1989135072
+delta_dist_arm_target  0.0241334627
+delta_dist_arm_1km     0.0110520794
+[1] "===== variables excluded after lmtest ===== "
+ [1] "gender"                 "traveled_recently"      "occupation"            
+ [4] "sleep_net"              "slept_net_yest"         "dist_Ntx_difftx_target"
+ [7] "dist_popN_1km"          "dist_Ntx_1km"           "dist_Ntx_difftx_1km"   
+[10] "dist_Ntx_difftx_2km"    "pre_spray_cover"        "dist_hh"               
+[13] "dist_hf"                "ea_elevation"           "slept_outdoors"        
+[16] "dist_arm_1km"           "dist_arm_2km"           "delta_dist_arm_2km"    
+[19] "delta_dist_arm_3km"    
+[1] "===== variables excluded after sparsity check ===== "
+[1] "dist_Ntx_difftx_target"
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+ [1] "age"                    "dist_popN_target"       "dist_Ntx_target"       
+ [4] "dist_Ntx_sametx_target" "dist_Ntx_sametx_1km"    "dist_popN_2km"         
+ [7] "dist_Ntx_2km"           "dist_Ntx_sametx_2km"    "dist_popN_3km"         
+[10] "dist_Ntx_3km"           "dist_Ntx_sametx_3km"    "dist_Ntx_difftx_3km"   
+[13] "pre_incidence"          "pop_size_ea"            "pre_rainfall"          
+[16] "pre_evi"                "surface_temp"           "dist_arm_target"       
+[19] "dist_arm_3km"           "delta_slept_outdoors"   "delta_dist_arm_target" 
+[22] "delta_dist_arm_1km"    
+Error in data.table::setnames(d_Xint, sapply(Xint, paste0, collapse = "_")) : 
+  Passed a vector of type 'list'. Needs to be type 'character'.
+Failed on chain
+> 
+> names(res_de) = c("human", "mosquito", "human & mosquito")
+> names(res_sp) = c("human", "mosquito", "human & mosquito")
+> names(res_te) = c("human", "mosquito", "human & mosquito")
+> 
+> # save results ---------------------------------------------------
+> prev_tmle_results <- list(
++   res_de = res_de, 
++   res_sp = res_sp,
++   res_te = res_te
++ )
+> 
+> saveRDS(prev_tmle_results, file = paste0(results_path, "prevalence-tmle-results-sero.RDS"))
+> 
+> 
+> proc.time()
+   user  system elapsed 
+359.049   3.638 366.190 

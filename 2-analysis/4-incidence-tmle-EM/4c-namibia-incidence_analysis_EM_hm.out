@@ -1,0 +1,388 @@
+
+R version 4.0.2 (2020-06-22) -- "Taking Off Again"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> ################################################
+> # Spillover effects of reactive, focal malaria 
+> # interventions
+> 
+> # Namibia trial
+> # Primary analysis: incidence
+> 
+> # All unadjusted due to data sparsity
+> 
+> # All cohort-level Q model to be consistent with
+> # primary analysis 
+> ################################################ 
+> rm(list=ls())
+> library(sl3)
+> library(tmle3)
+> library(origami)
+origami v1.0.5: Generalized Framework for Cross-Validation
+> library(SuperLearner)
+Loading required package: nnls
+Loading required package: gam
+Loading required package: splines
+Loading required package: foreach
+Loaded gam 1.20
+
+Super Learner
+Version: 2.0-28
+Package created on 2021-05-04
+
+> library(glmnet)
+Loading required package: Matrix
+Loaded glmnet 4.1-2
+> library(gam)
+> library(xgboost)
+> library(GGally)
+Loading required package: ggplot2
+Registered S3 method overwritten by 'GGally':
+  method from   
+  +.gg   ggplot2
+> 
+> source(paste0(here::here(), "/0-config.R"))
+Loading required package: sp
+Please note that rgdal will be retired by the end of 2023,
+plan transition to sf/stars/terra functions using GDAL and PROJ
+at your earliest convenience.
+
+rgdal: version: 1.5-28, (SVN revision 1158)
+Geospatial Data Abstraction Library extensions to R successfully loaded
+Loaded GDAL runtime: GDAL 3.4.1, released 2021/12/27
+Path to GDAL shared files: /share/software/user/open/gdal/3.4.1/share/gdal
+GDAL binary built with GEOS: FALSE 
+Loaded PROJ runtime: Rel. 8.2.1, January 1st, 2022, [PJ_VERSION: 821]
+Path to PROJ shared files: /home/users/jadebc/.local/share/proj:/share/software/user/open/proj/8.2.1/share/proj:/share/software/user/open/proj/8.2.1/share/proj
+PROJ CDN enabled: FALSE
+Linking to sp version:1.4-5
+To mute warnings of possible GDAL/OSR exportToProj4() degradation,
+use options("rgdal_show_exportToProj4_warnings"="none") before loading sp or rgdal.
+
+Attaching package: ‘tidyr’
+
+The following objects are masked from ‘package:Matrix’:
+
+    expand, pack, unpack
+
+
+Attaching package: ‘lubridate’
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+
+Attaching package: ‘reshape2’
+
+The following object is masked from ‘package:tidyr’:
+
+    smiths
+
+
+Attaching package: ‘purrr’
+
+The following objects are masked from ‘package:foreach’:
+
+    accumulate, when
+
+
+Attaching package: ‘data.table’
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+The following objects are masked from ‘package:reshape2’:
+
+    dcast, melt
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:data.table’:
+
+    between, first, last
+
+The following object is masked from ‘package:xgboost’:
+
+    slice
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+> 
+> # load data ---------------------------------------
+> data_hm_list <- readRDS(namibia_hm_process_path)
+> 
+> data_hm_list$long$sex = ifelse(data_hm_list$long$sex == "Male", 1, 0)
+> 
+> # define modifier list  ---------------------------------------
+> modifier_list <- c("pre_incidence_abovemed", "tx_cov_cohort_abovemed", "pre_spray_cover_abovemed",
++   "pre_rainfall_abovemed", "pre_evi_abovemed", "ea_elevation_abovemed", 
++   "surface_temp_abovemed", "sex", "min_dist_hf_abovemed")
+> 
+> # make list of modifier subset data  ---------------------------------------
+> # long
+> data_hm_long_llist_em <- map(modifier_list, function(x) 
++   filter_data(data = data_hm_list$long,
++               modifier_name = x))
+> data_hm_long_list_em <- unlist(data_hm_long_llist_em, recursive = F)
+> names(data_hm_long_list_em) <-  paste0(rep(modifier_list, each =2), "_", 
++                                          names(data_hm_long_list_em), "_",
++                                          "long")
+> 
+> # load covariate list ---------------------------------------
+> covarname <- readRDS(namibia_inc_covar_path)
+> covarname_g = c("pre_spray_cover", "pre_incidence", "pre_rainfall",
++                 "pop_size_ea","pre_evi", "ea_elevation","surface_temp")
+> covarname_Q = covarname[!covarname %in% c(covarname_g)]
+> 
+> # SuperLearner set up ---------------------------------------
+> source(paste0(here::here(), '/2-analysis/0-namibia-incidence-learners.R'))
+> 
+> 
+> # Run hTMLE - Spillover effect ---------------------------------------
+> res_spillover_hm <- list()
+> 
+> for(i in 1:length(data_hm_long_list_em)){
++   print("=====================================================================")
++   print(paste0("Human & mosquito - spillover effect #", i, ": ", names(data_hm_long_list_em)[[i]]))
++   print("=====================================================================")
++ 
++   set.seed(123)
++   fit <- run_hTMLE(df = data_hm_long_list_em[[i]],
++                    effecttype = 'spillover',
++                    Qlevel = "individual", # cohort/individual/adaptive for incidence, individual for prev
++                    glevel = "cohort", # always cohort for incidence, individual for prev
++                    dependency = TRUE, # TRUE if we want CIs adjusted for dependency
++                    unadj_est = TRUE, # TRUE if we want a unadjusted estimate
++                    y_l = 0,
++                    y_u = 1,
++                    covarname_g = covarname_g,    # set of names for adjustment variables
++                    covarname_Q = covarname_Q,
++                    SL_lib_Q = SL_lib_Q,
++                    SL_lib_g = SL_lib_g,
++                    SL_lib_adaQ = SL_lib_simple, # need to specify if for Qlevel = "adaptive"
++                    SL_lib_depen = SL_lib_simple, # need to specify if dependency = T
++                    verbose = FALSE,
++                    reservoir_name = "Human & mosquito",
++                    EM = T,
++                    Vfolds = 30,
++                    EMname = names(data_human_short_list_em)[i])
++ 
++   saveRDS(fit, file = paste0(results_path,
++                              paste0("namibia_htmle_inc_spillover_hm_",
++                                     names(data_hm_long_list_em)[[i]],
++                                     ".RDS")))
++   rm(fit)
++ }
+[1] "====================================================================="
+[1] "Human & mosquito - spillover effect #1: pre_incidence_abovemed_modifier1_long"
+[1] "====================================================================="
+[1] "Fitting htmle model ======================================="
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.02, 0.015"
+[1] "updated Qbar1W, Qbar0W: 0.019, 0.016"
+6.757 sec elapsed
+[1] "====================================================================="
+[1] "Human & mosquito - spillover effect #2: pre_incidence_abovemed_modifier0_long"
+[1] "====================================================================="
+[1] "Fitting htmle model ======================================="
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.006, 0.019"
+[1] "updated Qbar1W, Qbar0W: 0.006, 0.018"
+6.422 sec elapsed
+[1] "====================================================================="
+[1] "Human & mosquito - spillover effect #3: tx_cov_cohort_abovemed_modifier1_long"
+[1] "====================================================================="
+[1] "Fitting htmle model ======================================="
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.013, 0.015"
+[1] "updated Qbar1W, Qbar0W: 0.013, 0.015"
+6.257 sec elapsed
+[1] "====================================================================="
+[1] "Human & mosquito - spillover effect #4: tx_cov_cohort_abovemed_modifier0_long"
+[1] "====================================================================="
+[1] "Fitting htmle model ======================================="
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.01, 0.019"
+[1] "updated Qbar1W, Qbar0W: 0.01, 0.019"
+6.889 sec elapsed
+[1] "====================================================================="
+[1] "Human & mosquito - spillover effect #5: pre_spray_cover_abovemed_modifier1_long"
+[1] "====================================================================="
+[1] "Fitting htmle model ======================================="
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.006, 0.019"
+[1] "updated Qbar1W, Qbar0W: 0.006, 0.019"
+6.471 sec elapsed
+[1] "====================================================================="
+[1] "Human & mosquito - spillover effect #6: pre_spray_cover_abovemed_modifier0_long"
+[1] "====================================================================="
+[1] "Fitting htmle model ======================================="
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.019, 0.014"
+[1] "updated Qbar1W, Qbar0W: 0.019, 0.014"
+6.938 sec elapsed
+[1] "====================================================================="
+[1] "Human & mosquito - spillover effect #7: pre_rainfall_abovemed_modifier1_long"
+[1] "====================================================================="
+[1] "Fitting htmle model ======================================="
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.012, 0.018"
+[1] "updated Qbar1W, Qbar0W: 0.012, 0.018"
+6.923 sec elapsed
+[1] "====================================================================="
+[1] "Human & mosquito - spillover effect #8: pre_rainfall_abovemed_modifier0_long"
+[1] "====================================================================="
+[1] "Fitting htmle model ======================================="
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.011, 0.015"
+[1] "updated Qbar1W, Qbar0W: 0.012, 0.015"
+6.105 sec elapsed
+[1] "====================================================================="
+[1] "Human & mosquito - spillover effect #9: pre_evi_abovemed_modifier1_long"
+[1] "====================================================================="
+[1] "Fitting htmle model ======================================="
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.005, 0.021"
+[1] "updated Qbar1W, Qbar0W: 0.005, 0.021"
+8.177 sec elapsed
+[1] "====================================================================="
+[1] "Human & mosquito - spillover effect #10: pre_evi_abovemed_modifier0_long"
+[1] "====================================================================="
+[1] "Fitting htmle model ======================================="
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.017, 0.013"
+[1] "updated Qbar1W, Qbar0W: 0.018, 0.013"
+5.977 sec elapsed
+[1] "====================================================================="
+[1] "Human & mosquito - spillover effect #11: ea_elevation_abovemed_modifier1_long"
+[1] "====================================================================="
+[1] "Fitting htmle model ======================================="
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.017, 0.018"
+[1] "updated Qbar1W, Qbar0W: 0.017, 0.017"
+8.036 sec elapsed
+[1] "====================================================================="
+[1] "Human & mosquito - spillover effect #12: ea_elevation_abovemed_modifier0_long"
+[1] "====================================================================="
+[1] "Fitting htmle model ======================================="
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.005, 0.016"
+[1] "updated Qbar1W, Qbar0W: 0.005, 0.016"
+6.569 sec elapsed
+[1] "====================================================================="
+[1] "Human & mosquito - spillover effect #13: surface_temp_abovemed_modifier1_long"
+[1] "====================================================================="
+[1] "Fitting htmle model ======================================="
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.012, 0.009"
+[1] "updated Qbar1W, Qbar0W: 0.012, 0.009"
+6.229 sec elapsed
+[1] "====================================================================="
+[1] "Human & mosquito - spillover effect #14: surface_temp_abovemed_modifier0_long"
+[1] "====================================================================="
+[1] "Fitting htmle model ======================================="
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.012, 0.021"
+[1] "updated Qbar1W, Qbar0W: 0.012, 0.021"
+6.438 sec elapsed
+[1] "====================================================================="
+[1] "Human & mosquito - spillover effect #15: sex_modifier1_long"
+[1] "====================================================================="
+[1] "Fitting htmle model ======================================="
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.009, 0.016"
+[1] "updated Qbar1W, Qbar0W: 0.008, 0.017"
+6.489 sec elapsed
+[1] "====================================================================="
+[1] "Human & mosquito - spillover effect #16: sex_modifier0_long"
+[1] "====================================================================="
+[1] "Fitting htmle model ======================================="
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.021, 0.019"
+[1] "updated Qbar1W, Qbar0W: 0.019, 0.021"
+6.57 sec elapsed
+[1] "====================================================================="
+[1] "Human & mosquito - spillover effect #17: min_dist_hf_abovemed_modifier1_long"
+[1] "====================================================================="
+[1] "Fitting htmle model ======================================="
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.007, 0.01"
+[1] "updated Qbar1W, Qbar0W: 0.006, 0.011"
+6.574 sec elapsed
+[1] "====================================================================="
+[1] "Human & mosquito - spillover effect #18: min_dist_hf_abovemed_modifier0_long"
+[1] "====================================================================="
+[1] "Fitting htmle model ======================================="
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.018, 0.02"
+[1] "updated Qbar1W, Qbar0W: 0.019, 0.019"
+6.199 sec elapsed
+> 
+> proc.time()
+   user  system elapsed 
+367.888 554.821 167.192 

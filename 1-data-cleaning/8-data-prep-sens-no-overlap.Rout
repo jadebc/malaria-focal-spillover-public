@@ -1,0 +1,188 @@
+
+R version 4.1.0 (2021-05-18) -- "Camp Pontanezen"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> # ............................................
+> # Spillover effects of reactive, focal malaria 
+> # interventions
+> 
+> # Namibia trial
+> # Create analysis data structure
+> # Sensitivity analysis 
+> # of cohort with no overlap
+> # ............................................
+> 
+> 
+> rm(list=ls())
+> source(paste0(here::here(), "/0-config.R"))
+Loading required package: sp
+rgdal: version: 1.5-23, (SVN revision 1121)
+Geospatial Data Abstraction Library extensions to R successfully loaded
+Loaded GDAL runtime: GDAL 3.2.1, released 2020/12/29
+Path to GDAL shared files: /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/gdal
+GDAL binary built with GEOS: TRUE 
+Loaded PROJ runtime: Rel. 7.2.1, January 1st, 2021, [PJ_VERSION: 721]
+Path to PROJ shared files: /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/proj
+PROJ CDN enabled: FALSE
+Linking to sp version:1.4-5
+To mute warnings of possible GDAL/OSR exportToProj4() degradation,
+use options("rgdal_show_exportToProj4_warnings"="none") before loading rgdal.
+Overwritten PROJ_LIB was /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/proj
+
+Attaching package: ‘lubridate’
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+
+Attaching package: ‘reshape2’
+
+The following object is masked from ‘package:tidyr’:
+
+    smiths
+
+
+Attaching package: ‘data.table’
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+The following objects are masked from ‘package:reshape2’:
+
+    dcast, melt
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:data.table’:
+
+    between, first, last
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+Registered S3 method overwritten by 'GGally':
+  method from   
+  +.gg   ggplot2
+Warning messages:
+1: package ‘ggplot2’ was built under R version 4.1.2 
+2: package ‘tidyr’ was built under R version 4.1.2 
+3: package ‘purrr’ was built under R version 4.1.2 
+4: package ‘stringr’ was built under R version 4.1.2 
+5: package ‘dplyr’ was built under R version 4.1.2 
+> source(paste0(here::here(), "/0-base-functions/1-helper-functions-covar.R"))
+> library(fastDummies)
+Thank you for using fastDummies!
+To acknowledge our work, please cite the package:
+Kaplan, J. & Schlegel, B. (2023). fastDummies: Fast Creation of Dummy (Binary) Columns and Rows from Categorical Variables. Version 1.7.1. URL: https://github.com/jacobkap/fastDummies, https://jacobkap.github.io/fastDummies/.
+> 
+> # load data --------------------------------------------
+> short <- readRDS(namibia_df_short_path) %>% 
++   rename(A = intarm,
++          id = cohort_id)
+> long <- readRDS(namibia_df_long_path) %>% 
++   rename(A = intarm,
++          id = cohort_id)
+> 
+> 
+> # identify overlapping cohorts --------------------------------------------
+> overlap_short <- check_overlap_all(df = short, r = 1000)
+> overlap_long <- check_overlap_all(df = long, r = 1000)
+> 
+> 
+> # list overlapping cohorts --------------------------------------------
+> overlap_short_target_df <- overlap_short %>% 
++   filter(overlap_type == "target") %>% 
++   dplyr::select(coho_i, coho_j)
+> 
+> overlap_short_target <- c(
++   overlap_short_target_df[,1],
++   overlap_short_target_df[,2]
++ ) %>% unique() %>% as.character()
+> 
+> overlap_long_target_df <- overlap_long %>% 
++   filter(overlap_type == "target") %>% 
++   dplyr::select(coho_i, coho_j)
+> 
+> overlap_long_target <- c(
++   overlap_long_target_df[,1],
++   overlap_long_target_df[,2]
++ ) %>% unique() %>% as.character()
+> 
+> overlap_short_spill_df <- overlap_short %>% 
++   filter(overlap_type == "spill") %>% 
++   dplyr::select(coho_i, coho_j)
+> 
+> overlap_short_spill <- c(
++   overlap_short_spill_df[,1],
++   overlap_short_spill_df[,2]
++ ) %>% unique() %>% as.character()
+> 
+> overlap_long_spill_df <- overlap_long %>% 
++   filter(overlap_type == "spill") %>% 
++   dplyr::select(coho_i, coho_j)
+> 
+> overlap_long_spill <- c(
++   overlap_long_spill_df[,1],
++   overlap_long_spill_df[,2]
++ ) %>% unique() %>% as.character()
+> 
+> # create datasets with no overlapping cohorts --------------------------------------------
+> 
+> nonoverlap_short_target <- short %>% 
++   filter(id %in% overlap_short_target) %>% 
++   rename(intarm = A,
++          cohort_id = id)
+> 
+> nonoverlap_long_target <- long %>% 
++   filter(id %in% overlap_long_target) %>% 
++   rename(intarm = A,
++          cohort_id = id)
+> 
+> nonoverlap_short_spill <- short %>% 
++   filter(id %in% overlap_short_spill) %>% 
++   rename(intarm = A,
++          cohort_id = id)
+> 
+> nonoverlap_long_spill <- long %>% 
++   filter(id %in% overlap_long_spill) %>% 
++   rename(intarm = A,
++          cohort_id = id)
+> 
+> # save datasets --------------------------------------------
+> 
+> saveRDS(nonoverlap_short_target, file = namibia_df_short_sens_nooverlap_target_path)
+> saveRDS(nonoverlap_short_spill, file = namibia_df_short_sens_nooverlap_spill_path)
+> saveRDS(nonoverlap_long_target, file = namibia_df_long_sens_nooverlap_target_path)
+> saveRDS(nonoverlap_long_spill, file = namibia_df_long_sens_nooverlap_spill_path)
+> 
+> proc.time()
+   user  system elapsed 
+ 22.758   3.683  45.966 

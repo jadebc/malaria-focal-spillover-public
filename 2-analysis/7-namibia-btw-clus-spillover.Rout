@@ -1,0 +1,444 @@
+
+R version 4.1.0 (2021-05-18) -- "Camp Pontanezen"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> ################################################
+> # Spillover effects of reactive, focal malaria 
+> # interventions
+> 
+> # Namibia trial
+> # Test for between-cluster spillovers 
+> ################################################
+> 
+> rm(list=ls())
+> library(rgeos)
+Loading required package: sp
+rgeos version: 0.5-5, (SVN revision 640)
+ GEOS runtime version: 3.8.1-CAPI-1.13.3 
+ Linking to sp version: 1.4-5 
+ Polygon checking: TRUE 
+
+> library(readstata13)
+> library(MASS)
+> library(lmtest)
+Loading required package: zoo
+
+Attaching package: ‘zoo’
+
+The following objects are masked from ‘package:base’:
+
+    as.Date, as.Date.numeric
+
+> 
+> source(paste0(here::here(), "/0-config.R"))
+rgdal: version: 1.5-23, (SVN revision 1121)
+Geospatial Data Abstraction Library extensions to R successfully loaded
+Loaded GDAL runtime: GDAL 3.2.1, released 2020/12/29
+Path to GDAL shared files: /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/gdal
+GDAL binary built with GEOS: TRUE 
+Loaded PROJ runtime: Rel. 7.2.1, January 1st, 2021, [PJ_VERSION: 721]
+Path to PROJ shared files: /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/proj
+PROJ CDN enabled: FALSE
+Linking to sp version:1.4-5
+To mute warnings of possible GDAL/OSR exportToProj4() degradation,
+use options("rgdal_show_exportToProj4_warnings"="none") before loading rgdal.
+Overwritten PROJ_LIB was /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/proj
+
+Attaching package: ‘lubridate’
+
+The following objects are masked from ‘package:rgeos’:
+
+    intersect, setdiff, union
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+
+Attaching package: ‘reshape2’
+
+The following object is masked from ‘package:tidyr’:
+
+    smiths
+
+
+Attaching package: ‘data.table’
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+The following objects are masked from ‘package:reshape2’:
+
+    dcast, melt
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:data.table’:
+
+    between, first, last
+
+The following object is masked from ‘package:MASS’:
+
+    select
+
+The following objects are masked from ‘package:rgeos’:
+
+    intersect, setdiff, symdiff, union
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+Registered S3 method overwritten by 'GGally':
+  method from   
+  +.gg   ggplot2
+Warning messages:
+1: package ‘ggplot2’ was built under R version 4.1.2 
+2: package ‘tidyr’ was built under R version 4.1.2 
+3: package ‘purrr’ was built under R version 4.1.2 
+4: package ‘stringr’ was built under R version 4.1.2 
+5: package ‘dplyr’ was built under R version 4.1.2 
+> 
+> # load locality shape file 
+> shp <- rgdal::readOGR(dsn =namibia_shapefile_dsn,
++                       layer = namibia_shapefile_layer)
+OGR data source with driver: ESRI Shapefile 
+Source: "/Users/jadebc/Library/CloudStorage/Box-Box/NAMEP SMT Shared Folder/Datasets/Final trial data for collaborators/Shapefiles/Study area", layer: "EA_study_area_Y2"
+with 102 features
+It has 29 fields
+Integer64 fields read as strings:  ID2 
+> 
+> ea_data <- read.dta13(paste0(box_shared_path,"Datasets/Final trial data for collaborators/EA level/EA_level_dataset.dta"))
+> ea_data <- ea_data %>% rename(EA = ea_no)
+>  
+> # identify neighboring locality to each locality ------------------------------------
+> neighbors = gTouches(shp, byid=TRUE)
+> 
+> # get list of all EAs
+> eas = unique(shp$EA)
+> 
+> # get list of EAs in the trial 
+> trial_eas = eas = unique(shp$EA[shp$Arm2!=0])
+> 
+> # subset matrix of neighboring localities to those in 
+> # the trial 
+> ind_trial_eas = apply(as.matrix(trial_eas), 1, function(x) 
++   which(eas == x))
+> neighbors_trial = neighbors[ind_trial_eas, ind_trial_eas]
+> assert_that(setequal(dim(neighbors_trial), c(56,56)))
+[1] TRUE
+> 
+> # identify neighbors of each trial EA 
+> # create list where each element is an EA and
+> # contains a vector of that EA's neighbors
+> ea_neighbor = list()
+> 
+> for(i in 1:length(trial_eas)){
++   x = neighbors_trial[which(trial_eas == trial_eas[i]),]
++   ea_neighbor[[i]] = trial_eas[which(x)]
++ }
+> names(ea_neighbor) = trial_eas
+> 
+>  
+> # transform data to prep for test of contamination ------------------------------------
+> untx_ea = shp$EA[is.na(shp$Eas_Stud_1)]
+> RO_ea = shp$EA[shp$Eas_Stud_1=="RO" & !is.na(shp$Eas_Stud_1)]
+> RV_ea = shp$EA[shp$Eas_Stud_1=="RV" & !is.na(shp$Eas_Stud_1)]
+> TO_ea = shp$EA[shp$Eas_Stud_1=="TO" & !is.na(shp$Eas_Stud_1)]
+> TV_ea = shp$EA[shp$Eas_Stud_1=="TV" & !is.na(shp$Eas_Stud_1)]
+> 
+> RO_list = ea_neighbor[names(ea_neighbor) %in% RO_ea]
+> RV_list = ea_neighbor[names(ea_neighbor) %in% RV_ea]
+> TO_list = ea_neighbor[names(ea_neighbor) %in% TO_ea]
+> TV_list = ea_neighbor[names(ea_neighbor) %in% TV_ea]
+> 
+> # classify each neighbor as untreated, same, or different tx
+> classify_number <- function(d, tx){
++   x = matrix(NA, length(d), 1)
++   y = matrix(NA, length(d), 1)
++   
++   for(i in 1:length(d)){
++     
++     x[i,1] = case_when(
++       d[i] %in% RO_ea ~ "RO",
++       d[i] %in% RV_ea ~ "RV",
++       d[i] %in% TO_ea ~ "TO",
++       d[i] %in% TV_ea ~ "TV"
++     )
++     
++     y[i,1] = case_when(
++       d[i] %in% RO_ea & tx == "RO" ~ "Concordant",
++       d[i] %in% RO_ea & tx != "RO" ~ "Discordant",
++       d[i] %in% RV_ea & tx == "RV" ~ "Concordant",
++       d[i] %in% RV_ea & tx != "RV" ~ "Discordant",
++       d[i] %in% TO_ea & tx == "TO" ~ "Concordant",
++       d[i] %in% TO_ea & tx != "TO" ~ "Discordant",
++       d[i] %in% TV_ea & tx == "TV" ~ "Concordant",
++       d[i] %in% TV_ea & tx != "TV" ~ "Discordant"
++     )
++   }
++   
++   neighb_inc <- ea_data %>% filter(EA %in% as.numeric(d)) %>% 
++     summarise(mean_inc = mean(ea_incidence_rate, na.rm=T))
++ 
++   # summarize neighbor characteristics
++   out = data.frame(
++     n_neighbors = length(d),
++     n_disc_neighbors = length(y[y=="Discordant"]),
++     n_disc_neighb_RO = sum(x[y=="Discordant"]=="RO"),
++     n_disc_neighb_RV = sum(x[y=="Discordant"]=="RV"),
++     n_disc_neighb_TO = sum(x[y=="Discordant"]=="TO"),
++     n_disc_neighb_TV = sum(x[y=="Discordant"]=="TV"),
++     neighb_inc = neighb_inc$mean_inc
++   )
++ 
++   return(out)
++ }
+> 
+> RO_neighbors = lapply(RO_list, function(x) classify_number(x, tx = "RO")) %>% 
++   bind_rows() %>%
++   mutate(EA = names(RO_list))
+> RV_neighbors = lapply(RV_list, function(x) classify_number(x, tx = "RV")) %>% 
++   bind_rows() %>% 
++   mutate(EA = names(RV_list))
+> TO_neighbors = lapply(TO_list, function(x) classify_number(x, tx = "TO")) %>% 
++   bind_rows() %>% 
++   mutate(EA = names(TO_list))
+> TV_neighbors = lapply(TV_list, function(x) classify_number(x, tx = "TV")) %>% 
++   bind_rows() %>% 
++   mutate(EA = names(TV_list))
+> 
+> # one row for each EA with summary covariates
+> # about neighboring EAs
+> all_neighb_data = bind_rows(
++   RO_neighbors, RV_neighbors, TO_neighbors, TV_neighbors)
+> 
+> # merge in other EA-level variables 
+> neighb_data = merge(all_neighb_data, 
++           shp@data %>% dplyr::select(EA, Eas_StudyA, Eas_Stud_1), 
++           by = "EA") %>% 
++   rename(arm = Eas_Stud_1) %>% 
++   mutate(EA = as.numeric(EA))
+> 
+> 
+> # merge in incidence data ------------------------------------
+> 
+> m <- merge(neighb_data, ea_data,
++            by = "EA",
++            all.x = TRUE, all.y = FALSE)
+> assert_that(nrow(m) == nrow(neighb_data))
+[1] TRUE
+> 
+> m <- filter(m, ea_actual!="RO49") %>% 
++   mutate(disc_neigh_cat = case_when(
++     n_disc_neighbors == 1 ~ "1", 
++     n_disc_neighbors == 2 ~ "2", 
++     n_disc_neighbors == 3 ~ "3", 
++     n_disc_neighbors >= 4 ~ "4+"
++   )) %>% 
++   mutate(disc_neigh_cat = as.factor(disc_neigh_cat))
+> 
+> 
+> m$log_person_time = log(m$ea_person_time_years)
+> 
+> 
+> # plot incidence by neighbor incidence ------------------------------------
+> ggplot(m , aes(x = neighb_inc, y= ea_incidence_rate)) + 
++   geom_point(aes(col=intarm_actual)) + 
++   geom_smooth() +
++   theme_bw()
+`geom_smooth()` using method = 'loess' and formula = 'y ~ x'
+> 
+> m = m %>% mutate(armlabel = case_when(
++   intarm_actual== "RO" ~ "RACD only",
++   intarm_actual== "TO" ~ "rfMDA only",
++   intarm_actual== "TV" ~ "rfMDA + RAVC",
++   intarm_actual== "RV" ~ "RACD + RAVC"
++ )) %>% mutate(armlabel = factor(armlabel,
++     levels = c("RACD only", "rfMDA only", "RACD + RAVC", "rfMDA + RAVC")))
+> 
+> mypalette <- c("#1D6996","#0F8554","#EDAD08","#94346E")
+> 
+> plot <- ggplot(m , aes(x = neighb_inc, y= ea_incidence_rate)) + 
++   geom_point(aes(col=armlabel)) + 
++   facet_grid(~armlabel) +
++   xlab("Incidence rate per 1,000 person-years in adjacent clusters") + 
++   ylab("Incidence rate  per 1,000 person-years ") +
++   scale_color_manual(values= mypalette) +
++   theme_bw() +
++   theme(legend.position = "none")
+> ggsave(plot, filename = paste0(figure_path, "plot-between-clus-spillover-inc.png"),
++        width = 8, height =3)
+> 
+> 
+> # model incidence by neighbor incidence ------------------------------------
+> # fit negative binomial models ------------------------------------
+> 
+> # model without neighboring EA incidence
+> fit_nb = glm.nb(ea_local_cases_post_8wks ~  tpe + ravc + tpe*ravc + 
++                                offset(log_person_time),
++                              data = m,  link = log)
+> 
+> summary(fit_nb)
+
+Call:
+glm.nb(formula = ea_local_cases_post_8wks ~ tpe + ravc + tpe * 
+    ravc + offset(log_person_time), data = m, link = log, init.theta = 0.7445422665)
+
+Deviance Residuals: 
+    Min       1Q   Median       3Q      Max  
+-2.0442  -1.0329  -0.3104   0.1209   1.9329  
+
+Coefficients:
+            Estimate Std. Error z value Pr(>|z|)    
+(Intercept)  -3.1829     0.3335  -9.545   <2e-16 ***
+tpeT         -0.0996     0.4662  -0.214    0.831    
+ravcV        -0.1489     0.4647  -0.320    0.749    
+tpeT:ravcV   -0.2376     0.6581  -0.361    0.718    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for Negative Binomial(0.7445) family taken to be 1)
+
+    Null deviance: 64.121  on 54  degrees of freedom
+Residual deviance: 62.952  on 51  degrees of freedom
+AIC: 349.47
+
+Number of Fisher Scoring iterations: 1
+
+
+              Theta:  0.745 
+          Std. Err.:  0.165 
+
+ 2 x log-likelihood:  -339.466 
+> 
+> # model with neighboring EA incidence (continuous)
+> fit_nb_neighb = glm.nb(ea_local_cases_post_8wks ~  tpe + ravc + tpe*ravc + 
++                          neighb_inc + offset(log_person_time),
++                 data = m,  link = log)
+> 
+> summary(fit_nb_neighb)
+
+Call:
+glm.nb(formula = ea_local_cases_post_8wks ~ tpe + ravc + tpe * 
+    ravc + neighb_inc + offset(log_person_time), data = m, link = log, 
+    init.theta = 0.7535934272)
+
+Deviance Residuals: 
+    Min       1Q   Median       3Q      Max  
+-1.9987  -1.0767  -0.3602   0.1475   2.1040  
+
+Coefficients:
+             Estimate Std. Error z value Pr(>|z|)    
+(Intercept) -3.377623   0.380936  -8.867   <2e-16 ***
+tpeT        -0.097823   0.465744  -0.210    0.834    
+ravcV       -0.166137   0.479710  -0.346    0.729    
+neighb_inc   0.006533   0.007736   0.844    0.398    
+tpeT:ravcV  -0.319826   0.657557  -0.486    0.627    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for Negative Binomial(0.7536) family taken to be 1)
+
+    Null deviance: 64.691  on 54  degrees of freedom
+Residual deviance: 62.966  on 50  degrees of freedom
+AIC: 350.93
+
+Number of Fisher Scoring iterations: 1
+
+
+              Theta:  0.754 
+          Std. Err.:  0.167 
+
+ 2 x log-likelihood:  -338.926 
+> 
+> # model with neighboring EA incidence (categorical)
+> fit_nb_disc_neighb = glm.nb(ea_local_cases_post_8wks ~  tpe + ravc + tpe*ravc + 
++                               disc_neigh_cat + offset(log_person_time),
++                        data = m,  link = log)
+> 
+> summary(fit_nb_neighb)
+
+Call:
+glm.nb(formula = ea_local_cases_post_8wks ~ tpe + ravc + tpe * 
+    ravc + neighb_inc + offset(log_person_time), data = m, link = log, 
+    init.theta = 0.7535934272)
+
+Deviance Residuals: 
+    Min       1Q   Median       3Q      Max  
+-1.9987  -1.0767  -0.3602   0.1475   2.1040  
+
+Coefficients:
+             Estimate Std. Error z value Pr(>|z|)    
+(Intercept) -3.377623   0.380936  -8.867   <2e-16 ***
+tpeT        -0.097823   0.465744  -0.210    0.834    
+ravcV       -0.166137   0.479710  -0.346    0.729    
+neighb_inc   0.006533   0.007736   0.844    0.398    
+tpeT:ravcV  -0.319826   0.657557  -0.486    0.627    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for Negative Binomial(0.7536) family taken to be 1)
+
+    Null deviance: 64.691  on 54  degrees of freedom
+Residual deviance: 62.966  on 50  degrees of freedom
+AIC: 350.93
+
+Number of Fisher Scoring iterations: 1
+
+
+              Theta:  0.754 
+          Std. Err.:  0.167 
+
+ 2 x log-likelihood:  -338.926 
+> 
+> # likelihood ratio test comparing models
+> lrtest(fit_nb, fit_nb_neighb)
+Likelihood ratio test
+
+Model 1: ea_local_cases_post_8wks ~ tpe + ravc + tpe * ravc + offset(log_person_time)
+Model 2: ea_local_cases_post_8wks ~ tpe + ravc + tpe * ravc + neighb_inc + 
+    offset(log_person_time)
+  #Df  LogLik Df  Chisq Pr(>Chisq)
+1   5 -169.73                     
+2   6 -169.46  1 0.5403     0.4623
+> lrtest(fit_nb, fit_nb_disc_neighb)
+Likelihood ratio test
+
+Model 1: ea_local_cases_post_8wks ~ tpe + ravc + tpe * ravc + offset(log_person_time)
+Model 2: ea_local_cases_post_8wks ~ tpe + ravc + tpe * ravc + disc_neigh_cat + 
+    offset(log_person_time)
+  #Df  LogLik Df  Chisq Pr(>Chisq)
+1   5 -169.73                     
+2   8 -167.18  3 5.1067     0.1642
+> 
+> 
+> proc.time()
+   user  system elapsed 
+ 17.306   0.408  18.635 

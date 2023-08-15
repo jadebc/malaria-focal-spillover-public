@@ -1,0 +1,174 @@
+
+R version 4.1.0 (2021-05-18) -- "Camp Pontanezen"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> ################################################
+> # Spillover effects of reactive, focal malaria 
+> # interventions
+> 
+> # Namibia trial
+> # Primary analysis: incidence
+> # GLM model - individual-level analysis
+> # Unadjusted
+> ################################################ 
+> rm(list=ls())
+> 
+> source(paste0(here::here(), "/0-config.R"))
+Loading required package: sp
+rgdal: version: 1.5-23, (SVN revision 1121)
+Geospatial Data Abstraction Library extensions to R successfully loaded
+Loaded GDAL runtime: GDAL 3.2.1, released 2020/12/29
+Path to GDAL shared files: /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/gdal
+GDAL binary built with GEOS: TRUE 
+Loaded PROJ runtime: Rel. 7.2.1, January 1st, 2021, [PJ_VERSION: 721]
+Path to PROJ shared files: /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/proj
+PROJ CDN enabled: FALSE
+Linking to sp version:1.4-5
+To mute warnings of possible GDAL/OSR exportToProj4() degradation,
+use options("rgdal_show_exportToProj4_warnings"="none") before loading rgdal.
+Overwritten PROJ_LIB was /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/proj
+
+Attaching package: ‘lubridate’
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+
+Attaching package: ‘reshape2’
+
+The following object is masked from ‘package:tidyr’:
+
+    smiths
+
+
+Attaching package: ‘data.table’
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+The following objects are masked from ‘package:reshape2’:
+
+    dcast, melt
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:data.table’:
+
+    between, first, last
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+Registered S3 method overwritten by 'GGally':
+  method from   
+  +.gg   ggplot2
+Warning messages:
+1: package ‘ggplot2’ was built under R version 4.1.2 
+2: package ‘tidyr’ was built under R version 4.1.2 
+3: package ‘purrr’ was built under R version 4.1.2 
+4: package ‘stringr’ was built under R version 4.1.2 
+5: package ‘dplyr’ was built under R version 4.1.2 
+> 
+> # load data ---------------------------------------
+> data_human_list <- readRDS(namibia_human_process_path)
+> data_mosq_list <- readRDS(namibia_mosq_process_path)
+> data_hm_list <- readRDS(namibia_hm_process_path)
+> 
+> 
+> 
+> 
+> # human reservoir ---------------------------------------
+> res_total_human <- lapply(data_human_list, function(x)
++   fit_indiv_glm_unadj(data = x,
++                       effecttype = "total"))
+
+Attaching package: ‘zoo’
+
+The following objects are masked from ‘package:base’:
+
+    as.Date, as.Date.numeric
+
+> 
+> res_spillover_human <- lapply(data_human_list, function(x)
++   fit_indiv_glm_unadj(data = x,
++                 effecttype = "spillover"))
+> 
+> res_direct_human <- lapply(data_human_list, function(x)
++   fit_indiv_glm_unadj(data = x,
++                 effecttype = "direct"))
+> 
+> # save results
+> saveRDS(res_total_human, file = paste0(results_path, "namibia_glm_inc_total_human_unadj.RDS"))
+> saveRDS(res_spillover_human, file = paste0(results_path, "namibia_glm_inc_spillover_human_unadj.RDS"))
+> saveRDS(res_direct_human, file = paste0(results_path, "namibia_glm_inc_direct_human_unadj.RDS"))
+> 
+> 
+> # mosquito reservoir ---------------------------------------
+> res_total_mosq <- lapply(data_mosq_list, function(x)
++   fit_indiv_glm_unadj(data = x,
++                       effecttype = "total"))
+> 
+> res_spillover_mosq <- lapply(data_mosq_list, function(x)
++   fit_indiv_glm_unadj(data = x,
++                 effecttype = "spillover"))
+> 
+> res_direct_mosq <- lapply(data_mosq_list, function(x)
++   fit_indiv_glm_unadj(data = x,
++                 effecttype = "direct"))
+> 
+> # save results
+> saveRDS(res_total_mosq, file = paste0(results_path, "namibia_glm_inc_total_mosq_unadj.RDS"))
+> saveRDS(res_spillover_mosq, file = paste0(results_path, "namibia_glm_inc_spillover_mosq_unadj.RDS"))
+> saveRDS(res_direct_mosq, file = paste0(results_path, "namibia_glm_inc_direct_mosq_unadj.RDS"))
+> 
+> 
+> # human & mosquito reservoir ---------------------------------------
+> res_total_hm <- lapply(data_hm_list, function(x)
++   fit_indiv_glm_unadj(data = x,
++                       effecttype = "total"))
+> 
+> res_spillover_hm <- lapply(data_hm_list, function(x)
++   fit_indiv_glm_unadj(data = x,
++                 effecttype = "spillover"))
+> 
+> res_direct_hm <- lapply(data_hm_list, function(x)
++   fit_indiv_glm_unadj(data = x,
++                 effecttype = "direct"))
+> 
+> # save results
+> saveRDS(res_total_hm, file = paste0(results_path, "namibia_glm_inc_total_hm_unadj.RDS"))
+> saveRDS(res_spillover_hm, file = paste0(results_path, "namibia_glm_inc_spillover_hm_unadj.RDS"))
+> saveRDS(res_direct_hm, file = paste0(results_path, "namibia_glm_inc_direct_hm_unadj.RDS"))
+> 
+> 
+> proc.time()
+   user  system elapsed 
+ 10.613   1.147  14.359 

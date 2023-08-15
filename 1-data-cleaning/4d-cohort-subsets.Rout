@@ -1,0 +1,156 @@
+
+R version 4.1.0 (2021-05-18) -- "Camp Pontanezen"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> # ............................................
+> # Spillover effects of reactive, focal malaria 
+> # interventions
+> 
+> # Namibia trial
+> # Create matched cohort subsets
+> # ............................................
+> 
+> rm(list=ls())
+> source(paste0(here::here(), "/0-config.R"))
+Loading required package: sp
+rgdal: version: 1.5-23, (SVN revision 1121)
+Geospatial Data Abstraction Library extensions to R successfully loaded
+Loaded GDAL runtime: GDAL 3.2.1, released 2020/12/29
+Path to GDAL shared files: /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/gdal
+GDAL binary built with GEOS: TRUE 
+Loaded PROJ runtime: Rel. 7.2.1, January 1st, 2021, [PJ_VERSION: 721]
+Path to PROJ shared files: /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/proj
+PROJ CDN enabled: FALSE
+Linking to sp version:1.4-5
+To mute warnings of possible GDAL/OSR exportToProj4() degradation,
+use options("rgdal_show_exportToProj4_warnings"="none") before loading rgdal.
+Overwritten PROJ_LIB was /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/proj
+
+Attaching package: ‘lubridate’
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+
+Attaching package: ‘reshape2’
+
+The following object is masked from ‘package:tidyr’:
+
+    smiths
+
+
+Attaching package: ‘data.table’
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+The following objects are masked from ‘package:reshape2’:
+
+    dcast, melt
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:data.table’:
+
+    between, first, last
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+Registered S3 method overwritten by 'GGally':
+  method from   
+  +.gg   ggplot2
+Warning messages:
+1: package ‘ggplot2’ was built under R version 4.1.2 
+2: package ‘tidyr’ was built under R version 4.1.2 
+3: package ‘purrr’ was built under R version 4.1.2 
+4: package ‘stringr’ was built under R version 4.1.2 
+5: package ‘dplyr’ was built under R version 4.1.2 
+> source(paste0(here::here(), "/0-base-functions/1-helper-functions-covar.R"))
+> 
+> # ............................................
+> # Load data
+> # ............................................
+> cohorts <- readRDS(namibia_cohort_path)
+> 
+> # only need matched people to show on the map
+> sub_coho <- cohorts %>% filter(evermatchday == 1)
+> 
+> # ............................................
+> # Data process
+> # ............................................
+> # replace NA with 0 for some variables
+> sub_coho$int_trig[which(is.na(sub_coho$int_trig))] <- 0
+> sub_coho$clinic_day[which(is.na(sub_coho$clinic_day))] <- 0
+> sub_coho$int_day[which(is.na(sub_coho$int_day))] <- 0
+> 
+> sub_coho <- sub_coho %>%
++   mutate(person_type = case_when(clinic_day == 1 & int_trig == 1 ~ "index_int_clinic",
++                                  int_day == 1 & int_trig == 1 ~ "index_int_visit",
++                                  indexcase == 1 & int_trig == 0 ~ "index_nonint",
++                                  TRUE ~ "int_recip"))
+> 
+> sub_coho_index_int <- sub_coho %>% filter(int_day == 1 & int_trig == 1)
+> sub_coho_int_recip <- sub_coho %>% filter(person_type == "int_recip")
+> sub_coho_index_nonint <- sub_coho %>% filter(person_type == "index_nonint")
+> 
+> # generate a "int_date" (min(visit_day, first_int_day)) to indicate the intervention day of each cohort
+> list_iid_combined <- sub_coho_index_int$iid_combined
+> int_date <- rep(NA, length(list_iid_combined))
+> for (i in 1:length(list_iid_combined)){
++   int_recip <- sub_coho_int_recip %>% filter(iid_combined == list_iid_combined[i])
++   if (nrow(int_recip) == 0){
++     int_date[i] = sub_coho_index_int$date[i]
++   }else{
++     int_date[i] = min(int_recip$date)
++   }
++ }
+> int_date <- as.Date(int_date, origin = "1970-01-01")
+> 
+> sub_coho_index_int$int_date <- int_date
+> list_people <- unique(cohorts[,c("indiv_id", "longitude", "latitude")])
+> 
+> 
+> saveRDS(sub_coho_index_int,
++         namibia_sub_coho_index_int_path)
+> saveRDS(list_people,
++         namibia_coho_person_list_path)
+> saveRDS(sub_coho_int_recip,
++         namibia_sub_coho_int_recip_path)
+> saveRDS(sub_coho_index_nonint,
++         namibia_sub_coho_index_nonint_path)
+> 
+> 
+> proc.time()
+   user  system elapsed 
+ 60.583   5.400  69.512 

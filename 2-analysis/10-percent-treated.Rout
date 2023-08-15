@@ -1,0 +1,146 @@
+
+R version 4.1.0 (2021-05-18) -- "Camp Pontanezen"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> ################################################
+> # Spillover effects of reactive, focal malaria 
+> # interventions
+> 
+> # Namibia trial
+> # percentage of population 
+> #in target areas and spillover zones
+> ################################################
+> rm(list=ls())
+> 
+> source(paste0(here::here(), "/0-config.R"))
+Loading required package: sp
+rgdal: version: 1.5-23, (SVN revision 1121)
+Geospatial Data Abstraction Library extensions to R successfully loaded
+Loaded GDAL runtime: GDAL 3.2.1, released 2020/12/29
+Path to GDAL shared files: /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/gdal
+GDAL binary built with GEOS: TRUE 
+Loaded PROJ runtime: Rel. 7.2.1, January 1st, 2021, [PJ_VERSION: 721]
+Path to PROJ shared files: /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/proj
+PROJ CDN enabled: FALSE
+Linking to sp version:1.4-5
+To mute warnings of possible GDAL/OSR exportToProj4() degradation,
+use options("rgdal_show_exportToProj4_warnings"="none") before loading rgdal.
+Overwritten PROJ_LIB was /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/proj
+
+Attaching package: ‘lubridate’
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+
+Attaching package: ‘reshape2’
+
+The following object is masked from ‘package:tidyr’:
+
+    smiths
+
+
+Attaching package: ‘data.table’
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+The following objects are masked from ‘package:reshape2’:
+
+    dcast, melt
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:data.table’:
+
+    between, first, last
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+Registered S3 method overwritten by 'GGally':
+  method from   
+  +.gg   ggplot2
+Warning messages:
+1: package ‘ggplot2’ was built under R version 4.1.2 
+2: package ‘tidyr’ was built under R version 4.1.2 
+3: package ‘purrr’ was built under R version 4.1.2 
+4: package ‘stringr’ was built under R version 4.1.2 
+5: package ‘dplyr’ was built under R version 4.1.2 
+> 
+> # load data ---------------------------------------
+> df_long <- readRDS(namibia_df_long_path)
+> 
+> # mean percentage across cohorts
+> # of individuals in target area who were treated
+> df_long %>% filter(target_area==1) %>% 
++   group_by(cohort_id) %>% 
++   summarise(percent = mean(int_recip)) %>% 
++   ungroup() %>% 
++   summarise(mean_percent = mean(percent))
+# A tibble: 1 × 1
+  mean_percent
+         <dbl>
+1        0.220
+> 
+> # mean percentage across cohorts
+> # of individuals within 1km who were not treated 
+> df_long %>% 
++   group_by(cohort_id) %>% 
++   summarise(percent = mean(int_recip)) %>% 
++   ungroup() %>% 
++   summarise(mean_percent = mean(percent)) %>% 
++   mutate(mean_percent_untx = 1-mean_percent)
+# A tibble: 1 × 2
+  mean_percent mean_percent_untx
+         <dbl>             <dbl>
+1        0.137             0.863
+> 
+> 
+> 
+> # load prevalence data ------
+> prev <- readRDS(namibia_analysis_prev) 
+> 
+> mean(prev$target_area)
+[1] 0.8648454
+> mean(prev$spall)
+[1] 0.1210161
+> 
+> nrow(prev[prev$target_area==1,])
+[1] 3609
+> nrow(prev[prev$spall==1,])
+[1] 505
+> 
+> 
+> 
+> proc.time()
+   user  system elapsed 
+  2.786   0.260   3.365 

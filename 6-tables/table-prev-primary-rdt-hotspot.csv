@@ -1,0 +1,10 @@
+"","reservoir","parameter","N_int","N_cont","prev_int","prev_control","result_PR","result_PR_adj"
+"1","Human","Direct effect",456,506,"0.011","0.010","1.11 (0.32, 3.81)","NA (NA, NA)"
+"2","Human","Spillover effect",72,69,"0.014","0.000","NA (NA, NA)","NA (NA, NA)"
+"3","Human","Total effect",528,575,"0.011","0.009","1.31 (0.40, 4.26)","NA (NA, NA)"
+"4","Mosquito","Direct effect",481,481,"0.010","0.010","1.00 (0.29, 3.43)","NA (NA, NA)"
+"5","Mosquito","Spillover effect",65,76,"0.015","0.000","NA (NA, NA)","NA (NA, NA)"
+"6","Mosquito","Total effect",546,557,"0.011","0.009","1.22 (0.38, 3.99)","NA (NA, NA)"
+"7","Human & mosquito","Direct effect",219,244,"0.000","0.000",NA,NA
+"8","Human & mosquito","Spillover effect",36,40,"0.028","0.000","NA (NA, NA)","NA (NA, NA)"
+"9","Human & mosquito","Total effect",255,284,"0.004","0.000","NA (NA, NA)","NA (NA, NA)"

@@ -1,0 +1,1440 @@
+
+R version 4.0.2 (2020-06-22) -- "Taking Off Again"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> ################################################
+> # Spillover effects of reactive, focal malaria 
+> # interventions
+> 
+> # Namibia trial
+> # Sensitivity analysis: incidence
+> # Spillover zone = 2km
+> 
+> # Setting Q level to cohort to match 
+> # level selected for primary analysis 
+> ################################################ 
+> rm(list=ls())
+> library(sl3)
+> library(tmle3)
+> library(origami)
+origami v1.0.5: Generalized Framework for Cross-Validation
+> library(SuperLearner)
+Loading required package: nnls
+Loading required package: gam
+Loading required package: splines
+Loading required package: foreach
+Loaded gam 1.20
+
+Super Learner
+Version: 2.0-28
+Package created on 2021-05-04
+
+> library(glmnet)
+Loading required package: Matrix
+Loaded glmnet 4.1-2
+> library(gam)
+> library(xgboost)
+> library(GGally)
+Loading required package: ggplot2
+Registered S3 method overwritten by 'GGally':
+  method from   
+  +.gg   ggplot2
+> 
+> source(paste0(here::here(), "/0-config.R"))
+Loading required package: sp
+Please note that rgdal will be retired by the end of 2023,
+plan transition to sf/stars/terra functions using GDAL and PROJ
+at your earliest convenience.
+
+rgdal: version: 1.5-28, (SVN revision 1158)
+Geospatial Data Abstraction Library extensions to R successfully loaded
+Loaded GDAL runtime: GDAL 3.4.1, released 2021/12/27
+Path to GDAL shared files: /share/software/user/open/gdal/3.4.1/share/gdal
+GDAL binary built with GEOS: FALSE 
+Loaded PROJ runtime: Rel. 8.2.1, January 1st, 2022, [PJ_VERSION: 821]
+Path to PROJ shared files: /home/users/jadebc/.local/share/proj:/share/software/user/open/proj/8.2.1/share/proj:/share/software/user/open/proj/8.2.1/share/proj
+PROJ CDN enabled: FALSE
+Linking to sp version:1.4-5
+To mute warnings of possible GDAL/OSR exportToProj4() degradation,
+use options("rgdal_show_exportToProj4_warnings"="none") before loading sp or rgdal.
+
+Attaching package: ‘tidyr’
+
+The following objects are masked from ‘package:Matrix’:
+
+    expand, pack, unpack
+
+
+Attaching package: ‘lubridate’
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+
+Attaching package: ‘reshape2’
+
+The following object is masked from ‘package:tidyr’:
+
+    smiths
+
+
+Attaching package: ‘purrr’
+
+The following objects are masked from ‘package:foreach’:
+
+    accumulate, when
+
+
+Attaching package: ‘data.table’
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+The following objects are masked from ‘package:reshape2’:
+
+    dcast, melt
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:data.table’:
+
+    between, first, last
+
+The following object is masked from ‘package:xgboost’:
+
+    slice
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+> 
+> # load data ---------------------------------------
+> data_human_list <- readRDS(namibia_human_process_sens_spzone_2km_path)
+> data_mosq_list <- readRDS(namibia_mosq_process_sens_spzone_2km_path)
+> data_hm_list <- readRDS(namibia_hm_process_sens_spzone_2km_path)
+> 
+> # load covariate list ---------------------------------------
+> covarname <- readRDS(namibia_inc_covar_sens_spzone_2km_path)
+> covarname_g = c("pre_spray_cover", "pre_incidence", "pre_rainfall",
++                 "pop_size_ea","pre_evi", "ea_elevation","surface_temp")
+> covarname_Q = covarname[!covarname %in% c(covarname_g)]
+> 
+> # SuperLearner set up ---------------------------------------
+> source(paste0(here::here(), '/2-analysis/0-namibia-incidence-learners.R'))
+> 
+> # Run hTMLE - Total effect ---------------------------------------
+> 
+> ## Human ---------------------------------------
+> tic()
+> set.seed(123)
+> res_total_human <- 
++   run_hTMLE(df = data_human_list$short,
++             effecttype = 'total',
++             Qlevel = "cohort", # cohort/individual/adaptive for incidence, individual for prev
++             glevel = "cohort", # always cohort for incidence, individual for prev
++             dependency = TRUE, # TRUE if we want CIs adjusted for dependency
++             unadj_est = FALSE, # TRUE if we want a unadjusted estimate
++             y_l = 0,
++             y_u = 1,
++             covarname_g = covarname_g,    # set of names for adjustment variables
++             covarname_Q = covarname_Q,
++             SL_lib_Q = SL_lib_Q,
++             SL_lib_g = SL_lib_g,
++             SL_lib_adaQ = SL_lib_simple, # need to specify if for Qlevel = "cohort"
++             SL_lib_depen = SL_lib_simple, # need to specify if dependency = T
++             verbose = FALSE,
++             reservoir_name = "Human")
+[1] "Fitting htmle model ======================================="
+[1] "Covariate screening ---------------------------------"
+Loading required package: lmtest
+Loading required package: zoo
+
+Attaching package: ‘zoo’
+
+The following objects are masked from ‘package:base’:
+
+    as.Date, as.Date.numeric
+
+
+Likelihood Ratio Test P-values:
+                P-value
+pre_spray_cover       0
+pre_incidence         0
+pre_rainfall          0
+pop_size_ea           0
+pre_evi               0
+ea_elevation          0
+surface_temp          0
+
+
+Covariates selected (P<0.2):
+                     P-value
+pre_spray_cover 2.802469e-61
+pre_incidence   0.000000e+00
+pre_rainfall    0.000000e+00
+pop_size_ea     0.000000e+00
+pre_evi         6.845990e-88
+ea_elevation    2.100975e-10
+surface_temp    0.000000e+00
+[1] "===== variables excluded after lmtest ===== "
+character(0)
+[1] "===== variables excluded after sparsity check ===== "
+character(0)
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+[1] "pre_spray_cover" "pre_incidence"   "pre_rainfall"    "pop_size_ea"    
+[5] "pre_evi"         "ea_elevation"    "surface_temp"   
+
+Likelihood Ratio Test P-values:
+                         P-value
+dist_to_index            0.05869
+pop_500m                 0.00000
+pop_1km                  0.00000
+pop_2km                  0.00073
+pop_3km                  0.05515
+sex                      0.00000
+dist_hh                  0.00000
+dist_hf                  0.00000
+pop_size_cohort          0.02573
+pre_int_3000             0.00000
+pre_int_2000             0.00000
+pre_int_1000             0.00000
+pre_int_500              0.00000
+n_int_pre_recei          0.00000
+pre_int_propdiffarm_500  0.00065
+pre_int_propdiffarm_1000 0.00000
+pre_int_propdiffarm_2000 0.82317
+pre_int_propdiffarm_3000 0.00000
+age                      0.00314
+delta_age                0.00000
+delta_age.1              0.00000
+
+
+Covariates selected (P<0.2):
+                               P-value
+dist_to_index             5.868811e-02
+pop_500m                  1.553409e-16
+pop_1km                   1.083467e-06
+pop_2km                   7.313813e-04
+pop_3km                   5.514703e-02
+sex                       2.168300e-13
+dist_hh                   1.629206e-07
+dist_hf                   1.541716e-17
+pop_size_cohort           2.573385e-02
+pre_int_3000              1.006737e-22
+pre_int_2000              8.152733e-25
+pre_int_1000              1.063409e-29
+pre_int_500               1.056104e-12
+n_int_pre_recei           1.578710e-43
+pre_int_propdiffarm_500   6.464998e-04
+pre_int_propdiffarm_1000  4.199126e-22
+pre_int_propdiffarm_3000  3.843397e-11
+age                       3.137620e-03
+delta_age                1.181446e-272
+delta_age.1              1.181446e-272
+[1] "===== variables excluded after lmtest ===== "
+[1] "pre_int_propdiffarm_2000"
+[1] "===== variables excluded after sparsity check ===== "
+[1] "pre_int_propdiffarm_500"
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+ [1] "dist_to_index"            "pop_500m"                
+ [3] "pop_1km"                  "pop_2km"                 
+ [5] "pop_3km"                  "sex"                     
+ [7] "dist_hh"                  "dist_hf"                 
+ [9] "pop_size_cohort"          "pre_int_3000"            
+[11] "pre_int_2000"             "pre_int_1000"            
+[13] "pre_int_500"              "n_int_pre_recei"         
+[15] "pre_int_propdiffarm_1000" "pre_int_propdiffarm_3000"
+[17] "age"                      "delta_age"               
+14.599 sec elapsed
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "Cohort-level covariate screening ---------------------------------"
+
+Likelihood Ratio Test P-values:
+                P-value
+pre_spray_cover 0.54966
+pre_incidence   0.00000
+pre_rainfall    0.00187
+pop_size_ea     0.01499
+pre_evi         0.15421
+ea_elevation    0.40068
+surface_temp    0.16514
+
+
+Covariates selected (P<0.2):
+                   P-value
+pre_incidence 2.511042e-06
+pre_rainfall  1.870536e-03
+pop_size_ea   1.499049e-02
+pre_evi       1.542146e-01
+surface_temp  1.651392e-01
+[1] "===== variables excluded after lmtest ===== "
+[1] "pre_spray_cover" "ea_elevation"   
+[1] "===== variables excluded after sparsity check ===== "
+character(0)
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+[1] "pre_incidence" "pre_rainfall"  "pop_size_ea"   "pre_evi"      
+[5] "surface_temp" 
+
+Likelihood Ratio Test P-values:
+                         P-value
+dist_to_index            0.70122
+pop_500m                 0.03834
+pop_1km                  0.99760
+pop_2km                  0.01241
+pop_3km                  0.50800
+sex                      0.43827
+dist_hh                  0.31190
+dist_hf                  0.00332
+pop_size_cohort          0.10051
+pre_int_3000             0.00064
+pre_int_2000             0.00087
+pre_int_1000             0.00130
+pre_int_500              0.00086
+n_int_pre_recei          0.00000
+pre_int_propdiffarm_500  0.17741
+pre_int_propdiffarm_1000 0.01917
+pre_int_propdiffarm_2000 0.65136
+pre_int_propdiffarm_3000 0.75589
+age                      0.00000
+delta_age                0.00000
+
+
+Covariates selected (P<0.2):
+                              P-value
+pop_500m                 3.833716e-02
+pop_2km                  1.241114e-02
+dist_hf                  3.318719e-03
+pop_size_cohort          1.005139e-01
+pre_int_3000             6.366839e-04
+pre_int_2000             8.733317e-04
+pre_int_1000             1.299509e-03
+pre_int_500              8.605384e-04
+n_int_pre_recei          2.424109e-06
+pre_int_propdiffarm_500  1.774099e-01
+pre_int_propdiffarm_1000 1.917041e-02
+age                      4.961532e-10
+delta_age                3.305816e-10
+[1] "===== variables excluded after lmtest ===== "
+[1] "dist_to_index"            "pop_1km"                 
+[3] "pop_3km"                  "sex"                     
+[5] "dist_hh"                  "pre_int_propdiffarm_2000"
+[7] "pre_int_propdiffarm_3000"
+[1] "===== variables excluded after sparsity check ===== "
+character(0)
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+ [1] "pop_500m"                 "pop_2km"                 
+ [3] "dist_hf"                  "pop_size_cohort"         
+ [5] "pre_int_3000"             "pre_int_2000"            
+ [7] "pre_int_1000"             "pre_int_500"             
+ [9] "n_int_pre_recei"          "pre_int_propdiffarm_500" 
+[11] "pre_int_propdiffarm_1000" "age"                     
+[13] "delta_age"               
+[1] "<20 obs per covariate for g model; creating small regression learners"
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.005, 0.008"
+[1] "updated Qbar1W, Qbar0W: 0.005, 0.008"
+9.634 sec elapsed
+> toc()
+34.749 sec elapsed
+> 
+> saveRDS(res_total_human, file = paste0(results_path, "namibia_htmle_inc_total_human_sens_spzone_2km.RDS"))
+> 
+> ## Mosquito ---------------------------------------
+> set.seed(123)
+> res_total_mosq <- 
++   run_hTMLE(df = data_mosq_list$long,
++             effecttype = 'total',
++             Qlevel = "cohort", # cohort/individual/adaptive for incidence, individual for prev
++             glevel = "cohort", # always cohort for incidence, individual for prev
++             dependency = TRUE, # TRUE if we want CIs adjusted for dependency
++             unadj_est = FALSE, # TRUE if we want a unadjusted estimate
++             y_l = 0,
++             y_u = 1,
++             covarname_g = covarname_g,    # set of names for adjustment variables
++             covarname_Q = covarname_Q,
++             SL_lib_Q = SL_lib_Q,
++             SL_lib_g = SL_lib_g,
++             SL_lib_adaQ = SL_lib_simple, # need to specify if for Qlevel = "cohort"
++             SL_lib_depen = SL_lib_simple, # need to specify if dependency = T
++             verbose = FALSE,
++             reservoir_name = "Mosquito")
+[1] "Fitting htmle model ======================================="
+[1] "Covariate screening ---------------------------------"
+
+Likelihood Ratio Test P-values:
+                P-value
+pre_spray_cover 0.00000
+pre_incidence   0.00000
+pre_rainfall    0.00712
+pop_size_ea     0.00000
+pre_evi         0.00000
+ea_elevation    0.00000
+surface_temp    0.00000
+
+
+Covariates selected (P<0.2):
+                     P-value
+pre_spray_cover 1.690600e-17
+pre_incidence   0.000000e+00
+pre_rainfall    7.119564e-03
+pop_size_ea     0.000000e+00
+pre_evi         7.353173e-34
+ea_elevation    0.000000e+00
+surface_temp    0.000000e+00
+[1] "===== variables excluded after lmtest ===== "
+character(0)
+[1] "===== variables excluded after sparsity check ===== "
+character(0)
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+[1] "pre_spray_cover" "pre_incidence"   "pre_rainfall"    "pop_size_ea"    
+[5] "pre_evi"         "ea_elevation"    "surface_temp"   
+
+Likelihood Ratio Test P-values:
+                         P-value
+dist_to_index            0.00001
+pop_500m                 0.00000
+pop_1km                  0.00000
+pop_2km                  0.00011
+pop_3km                  0.12268
+sex                      0.00000
+dist_hh                  0.00328
+dist_hf                  0.00000
+pop_size_cohort          0.77731
+pre_int_3000             0.00000
+pre_int_2000             0.00000
+pre_int_1000             0.00000
+pre_int_500              0.00000
+n_int_pre_recei          0.00000
+pre_int_propdiffarm_500  0.00004
+pre_int_propdiffarm_1000 0.00000
+pre_int_propdiffarm_2000 0.00000
+pre_int_propdiffarm_3000 0.00000
+age                      0.00000
+delta_age                0.00000
+delta_age.1              0.00000
+
+
+Covariates selected (P<0.2):
+                              P-value
+dist_to_index            9.950433e-06
+pop_500m                 6.851605e-18
+pop_1km                  1.827385e-12
+pop_2km                  1.140163e-04
+pop_3km                  1.226804e-01
+sex                      9.121912e-23
+dist_hh                  3.284207e-03
+dist_hf                  7.171241e-34
+pre_int_3000             1.040936e-56
+pre_int_2000             5.617591e-63
+pre_int_1000             1.506953e-67
+pre_int_500              6.692250e-34
+n_int_pre_recei          8.036024e-99
+pre_int_propdiffarm_500  3.989689e-05
+pre_int_propdiffarm_1000 3.292212e-31
+pre_int_propdiffarm_2000 1.192861e-07
+pre_int_propdiffarm_3000 6.201232e-34
+age                      9.069583e-08
+delta_age                0.000000e+00
+delta_age.1              0.000000e+00
+[1] "===== variables excluded after lmtest ===== "
+[1] "pop_size_cohort"
+[1] "===== variables excluded after sparsity check ===== "
+[1] "pre_int_propdiffarm_500"
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+ [1] "dist_to_index"            "pop_500m"                
+ [3] "pop_1km"                  "pop_2km"                 
+ [5] "pop_3km"                  "sex"                     
+ [7] "dist_hh"                  "dist_hf"                 
+ [9] "pre_int_3000"             "pre_int_2000"            
+[11] "pre_int_1000"             "pre_int_500"             
+[13] "n_int_pre_recei"          "pre_int_propdiffarm_1000"
+[15] "pre_int_propdiffarm_2000" "pre_int_propdiffarm_3000"
+[17] "age"                      "delta_age"               
+14.127 sec elapsed
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "Cohort-level covariate screening ---------------------------------"
+
+Likelihood Ratio Test P-values:
+                P-value
+pre_spray_cover 0.06163
+pre_incidence   0.03093
+pre_rainfall    0.49132
+pop_size_ea     0.54654
+pre_evi         0.80531
+ea_elevation    0.15278
+surface_temp    0.82330
+
+
+Covariates selected (P<0.2):
+                   P-value
+pre_spray_cover 0.06162656
+pre_incidence   0.03092838
+ea_elevation    0.15277631
+[1] "===== variables excluded after lmtest ===== "
+[1] "pre_rainfall" "pop_size_ea"  "pre_evi"      "surface_temp"
+[1] "===== variables excluded after sparsity check ===== "
+character(0)
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+[1] "pre_spray_cover" "pre_incidence"   "ea_elevation"   
+
+Likelihood Ratio Test P-values:
+                         P-value
+dist_to_index            0.19826
+pop_500m                 0.08949
+pop_1km                  0.92030
+pop_2km                  0.00594
+pop_3km                  0.18265
+sex                      0.95702
+dist_hh                  0.54568
+dist_hf                  0.00087
+pop_size_cohort          0.16607
+pre_int_3000             0.00003
+pre_int_2000             0.00002
+pre_int_1000             0.00005
+pre_int_500              0.00003
+n_int_pre_recei          0.00000
+pre_int_propdiffarm_500  0.16164
+pre_int_propdiffarm_1000 0.01262
+pre_int_propdiffarm_2000 0.15526
+pre_int_propdiffarm_3000 0.16284
+age                      0.00000
+delta_age                0.00000
+
+
+Covariates selected (P<0.2):
+                              P-value
+dist_to_index            1.982561e-01
+pop_500m                 8.948526e-02
+pop_2km                  5.943617e-03
+pop_3km                  1.826465e-01
+dist_hf                  8.725555e-04
+pop_size_cohort          1.660706e-01
+pre_int_3000             2.527551e-05
+pre_int_2000             2.336139e-05
+pre_int_1000             5.005993e-05
+pre_int_500              3.183497e-05
+n_int_pre_recei          7.527135e-10
+pre_int_propdiffarm_500  1.616427e-01
+pre_int_propdiffarm_1000 1.262481e-02
+pre_int_propdiffarm_2000 1.552632e-01
+pre_int_propdiffarm_3000 1.628407e-01
+age                      4.017529e-08
+delta_age                1.163132e-08
+[1] "===== variables excluded after lmtest ===== "
+[1] "pop_1km" "sex"     "dist_hh"
+[1] "===== variables excluded after sparsity check ===== "
+character(0)
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+ [1] "dist_to_index"            "pop_500m"                
+ [3] "pop_2km"                  "pop_3km"                 
+ [5] "dist_hf"                  "pop_size_cohort"         
+ [7] "pre_int_3000"             "pre_int_2000"            
+ [9] "pre_int_1000"             "pre_int_500"             
+[11] "n_int_pre_recei"          "pre_int_propdiffarm_500" 
+[13] "pre_int_propdiffarm_1000" "pre_int_propdiffarm_2000"
+[15] "pre_int_propdiffarm_3000" "age"                     
+[17] "delta_age"               
+[1] "<20 obs per covariate for g model; creating small regression learners"
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.011, 0.014"
+[1] "updated Qbar1W, Qbar0W: 0.011, 0.014"
+11.27 sec elapsed
+> toc()
+> 
+> saveRDS(res_total_mosq, file = paste0(results_path, "namibia_htmle_inc_total_mosq_sens_spzone_2km.RDS"))
+> 
+> ## Human & mosquito ---------------------------------------
+> set.seed(123)
+> res_total_hm <- 
++   run_hTMLE(df = data_hm_list$long,
++           effecttype = 'total',
++           Qlevel = "cohort", # cohort/individual/adaptive for incidence, individual for prev
++           glevel = "cohort", # always cohort for incidence, individual for prev
++           dependency = TRUE, # TRUE if we want CIs adjusted for dependency
++           unadj_est = FALSE, # TRUE if we want a unadjusted estimate
++           y_l = 0,
++           y_u = 1,
++           covarname_g = covarname_g,    # set of names for adjustment variables
++           covarname_Q = covarname_Q,
++           SL_lib_Q = SL_lib_Q,
++           SL_lib_g = SL_lib_g,
++           SL_lib_adaQ = SL_lib_simple, # need to specify if for Qlevel = "cohort"
++           SL_lib_depen = SL_lib_simple, # need to specify if dependency = T
++           verbose = FALSE,
++           reservoir_name = "Human & mosquito",
++           Vfolds = 30)
+[1] "Fitting htmle model ======================================="
+[1] "Covariate screening ---------------------------------"
+
+Likelihood Ratio Test P-values:
+                P-value
+pre_spray_cover 0.00000
+pre_incidence   0.00000
+pre_rainfall    0.00000
+pop_size_ea     0.00000
+pre_evi         0.00000
+ea_elevation    0.00000
+surface_temp    0.01058
+
+
+Covariates selected (P<0.2):
+                      P-value
+pre_spray_cover  4.254154e-10
+pre_incidence    0.000000e+00
+pre_rainfall     0.000000e+00
+pop_size_ea      3.477917e-43
+pre_evi         9.968596e-117
+ea_elevation     0.000000e+00
+surface_temp     1.057675e-02
+[1] "===== variables excluded after lmtest ===== "
+character(0)
+[1] "===== variables excluded after sparsity check ===== "
+character(0)
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+[1] "pre_spray_cover" "pre_incidence"   "pre_rainfall"    "pop_size_ea"    
+[5] "pre_evi"         "ea_elevation"    "surface_temp"   
+
+Likelihood Ratio Test P-values:
+                         P-value
+dist_to_index            0.21399
+pop_500m                 0.00000
+pop_1km                  0.00000
+pop_2km                  0.32813
+pop_3km                  0.33068
+sex                      0.00000
+dist_hh                  0.00000
+dist_hf                  0.00000
+pop_size_cohort          0.23075
+pre_int_3000             0.00000
+pre_int_2000             0.00000
+pre_int_1000             0.00000
+pre_int_500              0.00000
+n_int_pre_recei          0.00000
+pre_int_propdiffarm_500  0.03565
+pre_int_propdiffarm_1000 0.00000
+pre_int_propdiffarm_2000 0.00000
+pre_int_propdiffarm_3000 0.00001
+age                      0.00000
+delta_age                0.00000
+delta_age.1              0.00000
+
+
+Covariates selected (P<0.2):
+                               P-value
+pop_500m                  1.477454e-15
+pop_1km                   5.853564e-07
+sex                       1.787113e-12
+dist_hh                   1.014253e-08
+dist_hf                   3.279567e-37
+pre_int_3000              2.758748e-35
+pre_int_2000              8.145585e-64
+pre_int_1000              3.924394e-37
+pre_int_500               1.080601e-21
+n_int_pre_recei           8.263166e-50
+pre_int_propdiffarm_500   3.565430e-02
+pre_int_propdiffarm_1000  2.733077e-18
+pre_int_propdiffarm_2000  9.318234e-11
+pre_int_propdiffarm_3000  8.421494e-06
+age                       1.286988e-09
+delta_age                1.746964e-160
+delta_age.1              1.746964e-160
+[1] "===== variables excluded after lmtest ===== "
+[1] "dist_to_index"   "pop_2km"         "pop_3km"         "pop_size_cohort"
+[1] "===== variables excluded after sparsity check ===== "
+[1] "pre_int_propdiffarm_500"
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+ [1] "pop_500m"                 "pop_1km"                 
+ [3] "sex"                      "dist_hh"                 
+ [5] "dist_hf"                  "pre_int_3000"            
+ [7] "pre_int_2000"             "pre_int_1000"            
+ [9] "pre_int_500"              "n_int_pre_recei"         
+[11] "pre_int_propdiffarm_1000" "pre_int_propdiffarm_2000"
+[13] "pre_int_propdiffarm_3000" "age"                     
+[15] "delta_age"               
+6.459 sec elapsed
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "Cohort-level covariate screening ---------------------------------"
+
+Likelihood Ratio Test P-values:
+                P-value
+pre_spray_cover 0.29699
+pre_incidence   0.00007
+pre_rainfall    0.04131
+pop_size_ea     0.03999
+pre_evi         0.22536
+ea_elevation    0.08653
+surface_temp    0.37102
+
+
+Covariates selected (P<0.2):
+                   P-value
+pre_incidence 6.995327e-05
+pre_rainfall  4.130664e-02
+pop_size_ea   3.999486e-02
+ea_elevation  8.652561e-02
+[1] "===== variables excluded after lmtest ===== "
+[1] "pre_spray_cover" "pre_evi"         "surface_temp"   
+[1] "===== variables excluded after sparsity check ===== "
+character(0)
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+[1] "pre_incidence" "pre_rainfall"  "pop_size_ea"   "ea_elevation" 
+
+Likelihood Ratio Test P-values:
+                         P-value
+dist_to_index            0.43140
+pop_500m                 0.06223
+pop_1km                  0.69615
+pop_2km                  0.13243
+pop_3km                  0.08339
+sex                      0.79939
+dist_hh                  0.25804
+dist_hf                  0.00160
+pop_size_cohort          0.48259
+pre_int_3000             0.01021
+pre_int_2000             0.00008
+pre_int_1000             0.00018
+pre_int_500              0.00010
+n_int_pre_recei          0.00000
+pre_int_propdiffarm_500  0.36507
+pre_int_propdiffarm_1000 0.10339
+pre_int_propdiffarm_2000 0.26065
+pre_int_propdiffarm_3000 0.54872
+age                      0.00362
+delta_age                0.00030
+
+
+Covariates selected (P<0.2):
+                              P-value
+pop_500m                 6.223322e-02
+pop_2km                  1.324345e-01
+pop_3km                  8.338852e-02
+dist_hf                  1.595770e-03
+pre_int_3000             1.021462e-02
+pre_int_2000             8.295149e-05
+pre_int_1000             1.803981e-04
+pre_int_500              1.006029e-04
+n_int_pre_recei          8.765165e-07
+pre_int_propdiffarm_1000 1.033929e-01
+age                      3.621929e-03
+delta_age                3.005343e-04
+[1] "===== variables excluded after lmtest ===== "
+[1] "dist_to_index"            "pop_1km"                 
+[3] "sex"                      "dist_hh"                 
+[5] "pop_size_cohort"          "pre_int_propdiffarm_500" 
+[7] "pre_int_propdiffarm_2000" "pre_int_propdiffarm_3000"
+[1] "===== variables excluded after sparsity check ===== "
+character(0)
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+ [1] "pop_500m"                 "pop_2km"                 
+ [3] "pop_3km"                  "dist_hf"                 
+ [5] "pre_int_3000"             "pre_int_2000"            
+ [7] "pre_int_1000"             "pre_int_500"             
+ [9] "n_int_pre_recei"          "pre_int_propdiffarm_1000"
+[11] "age"                      "delta_age"               
+[1] "<20 obs per covariate for g model; creating small regression learners"
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.006, 0.011"
+[1] "updated Qbar1W, Qbar0W: 0.005, 0.018"
+29.671 sec elapsed
+> 
+> saveRDS(res_total_hm, file = paste0(results_path, "namibia_htmle_inc_total_hm_sens_spzone_2km.RDS"))
+> 
+> 
+> # Run hTMLE - Spillover effect ---------------------------------------
+> 
+> ## Human ---------------------------------------
+> tic()
+> set.seed(123)
+> res_spillover_human <- 
++   run_hTMLE(df = data_human_list$short,
++             effecttype = 'spillover',
++             Qlevel = "individual", # cohort/individual/adaptive for incidence, individual for prev
++             glevel = "cohort", # always cohort for incidence, individual for prev
++             dependency = TRUE, # TRUE if we want CIs adjusted for dependency
++             unadj_est = FALSE, # TRUE if we want a unadjusted estimate
++             y_l = 0,
++             y_u = 1,
++             covarname_g = covarname_g,    # set of names for adjustment variables
++             covarname_Q = covarname_Q,
++             SL_lib_Q = SL_lib_Q,
++             SL_lib_g = SL_lib_g,
++             SL_lib_adaQ = SL_lib_simple, # need to specify if for Qlevel = "cohort"
++             SL_lib_depen = SL_lib_simple, # need to specify if dependency = T
++             verbose = FALSE,
++             reservoir_name = "Human")
+[1] "Fitting htmle model ======================================="
+[1] "Covariate screening ---------------------------------"
+
+Likelihood Ratio Test P-values:
+                P-value
+pre_spray_cover       0
+pre_incidence         0
+pre_rainfall          0
+pop_size_ea           0
+pre_evi               0
+ea_elevation          0
+surface_temp          0
+
+
+Covariates selected (P<0.2):
+                      P-value
+pre_spray_cover  1.547093e-62
+pre_incidence    0.000000e+00
+pre_rainfall     0.000000e+00
+pop_size_ea      0.000000e+00
+pre_evi         2.936856e-100
+ea_elevation     2.278668e-06
+surface_temp     0.000000e+00
+[1] "===== variables excluded after lmtest ===== "
+character(0)
+[1] "===== variables excluded after sparsity check ===== "
+character(0)
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+[1] "pre_spray_cover" "pre_incidence"   "pre_rainfall"    "pop_size_ea"    
+[5] "pre_evi"         "ea_elevation"    "surface_temp"   
+
+Likelihood Ratio Test P-values:
+                         P-value
+dist_to_index            0.57209
+pop_500m                 0.00000
+pop_1km                  0.00000
+pop_2km                  0.00128
+pop_3km                  0.02164
+sex                      0.00000
+dist_hh                  0.00000
+dist_hf                  0.00000
+pop_size_cohort          0.08317
+pre_int_3000             0.00000
+pre_int_2000             0.00000
+pre_int_1000             0.00000
+pre_int_500              0.00000
+n_int_pre_recei          0.00000
+pre_int_propdiffarm_500  0.00114
+pre_int_propdiffarm_1000 0.00000
+pre_int_propdiffarm_2000 0.62796
+pre_int_propdiffarm_3000 0.00000
+age                      0.00017
+delta_age                0.00000
+delta_age.1              0.00000
+
+
+Covariates selected (P<0.2):
+                               P-value
+pop_500m                  4.354969e-15
+pop_1km                   2.495389e-07
+pop_2km                   1.278476e-03
+pop_3km                   2.164031e-02
+sex                       6.279561e-18
+dist_hh                   7.965527e-07
+dist_hf                   1.500404e-16
+pop_size_cohort           8.316819e-02
+pre_int_3000              7.737305e-25
+pre_int_2000              1.501297e-27
+pre_int_1000              5.219740e-30
+pre_int_500               7.996725e-12
+n_int_pre_recei           1.178035e-44
+pre_int_propdiffarm_500   1.140209e-03
+pre_int_propdiffarm_1000  2.061966e-21
+pre_int_propdiffarm_3000  2.506513e-12
+age                       1.672068e-04
+delta_age                1.057505e-291
+delta_age.1              1.057505e-291
+[1] "===== variables excluded after lmtest ===== "
+[1] "dist_to_index"            "pre_int_propdiffarm_2000"
+[1] "===== variables excluded after sparsity check ===== "
+[1] "pre_int_propdiffarm_500"
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+ [1] "pop_500m"                 "pop_1km"                 
+ [3] "pop_2km"                  "pop_3km"                 
+ [5] "sex"                      "dist_hh"                 
+ [7] "dist_hf"                  "pop_size_cohort"         
+ [9] "pre_int_3000"             "pre_int_2000"            
+[11] "pre_int_1000"             "pre_int_500"             
+[13] "n_int_pre_recei"          "pre_int_propdiffarm_1000"
+[15] "pre_int_propdiffarm_3000" "age"                     
+[17] "delta_age"               
+13.901 sec elapsed
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "Cohort-level covariate screening ---------------------------------"
+
+Likelihood Ratio Test P-values:
+                P-value
+pre_spray_cover 0.54966
+pre_incidence   0.00000
+pre_rainfall    0.00187
+pop_size_ea     0.01499
+pre_evi         0.15421
+ea_elevation    0.40068
+surface_temp    0.16514
+
+
+Covariates selected (P<0.2):
+                   P-value
+pre_incidence 2.511042e-06
+pre_rainfall  1.870536e-03
+pop_size_ea   1.499049e-02
+pre_evi       1.542146e-01
+surface_temp  1.651392e-01
+[1] "===== variables excluded after lmtest ===== "
+[1] "pre_spray_cover" "ea_elevation"   
+[1] "===== variables excluded after sparsity check ===== "
+character(0)
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+[1] "pre_incidence" "pre_rainfall"  "pop_size_ea"   "pre_evi"      
+[5] "surface_temp" 
+
+Likelihood Ratio Test P-values:
+                         P-value
+dist_to_index            0.86294
+pop_500m                 0.12070
+pop_1km                  0.64428
+pop_2km                  0.03860
+pop_3km                  0.67842
+sex                      0.00113
+dist_hh                  0.72695
+dist_hf                  0.00547
+pop_size_cohort          0.24760
+pre_int_3000             0.00030
+pre_int_2000             0.00036
+pre_int_1000             0.00052
+pre_int_500              0.00083
+n_int_pre_recei          0.00050
+pre_int_propdiffarm_500  0.18672
+pre_int_propdiffarm_1000 0.02029
+pre_int_propdiffarm_2000 0.46952
+pre_int_propdiffarm_3000 0.55782
+age                      0.00000
+delta_age                0.00000
+
+
+Covariates selected (P<0.2):
+                              P-value
+pop_500m                 1.206962e-01
+pop_2km                  3.860331e-02
+sex                      1.131455e-03
+dist_hf                  5.465313e-03
+pre_int_3000             2.986851e-04
+pre_int_2000             3.560549e-04
+pre_int_1000             5.176132e-04
+pre_int_500              8.346053e-04
+n_int_pre_recei          4.980320e-04
+pre_int_propdiffarm_500  1.867230e-01
+pre_int_propdiffarm_1000 2.028557e-02
+age                      2.679463e-12
+delta_age                1.654027e-11
+[1] "===== variables excluded after lmtest ===== "
+[1] "dist_to_index"            "pop_1km"                 
+[3] "pop_3km"                  "dist_hh"                 
+[5] "pop_size_cohort"          "pre_int_propdiffarm_2000"
+[7] "pre_int_propdiffarm_3000"
+[1] "===== variables excluded after sparsity check ===== "
+character(0)
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+ [1] "pop_500m"                 "pop_2km"                 
+ [3] "sex"                      "dist_hf"                 
+ [5] "pre_int_3000"             "pre_int_2000"            
+ [7] "pre_int_1000"             "pre_int_500"             
+ [9] "n_int_pre_recei"          "pre_int_propdiffarm_500" 
+[11] "pre_int_propdiffarm_1000" "age"                     
+[13] "delta_age"               
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.008, 0.008"
+[1] "updated Qbar1W, Qbar0W: 0.007, 0.009"
+539.326 sec elapsed
+> toc()
+562.746 sec elapsed
+> 
+> saveRDS(res_spillover_human, file = paste0(results_path, "namibia_htmle_inc_spillover_human_sens_spzone_2km.RDS"))
+> 
+> ## Mosquito ---------------------------------------
+> tic()
+> set.seed(123)
+> res_spillover_mosq <- 
++   run_hTMLE(df = data_mosq_list$long,
++             effecttype = 'spillover',
++             Qlevel = "cohort", # cohort/individual/adaptive for incidence, individual for prev
++             glevel = "cohort", # always cohort for incidence, individual for prev
++             dependency = TRUE, # TRUE if we want CIs adjusted for dependency
++             unadj_est = FALSE, # TRUE if we want a unadjusted estimate
++             y_l = 0,
++             y_u = 1,
++             covarname_g = covarname_g,    # set of names for adjustment variables
++             covarname_Q = covarname_Q,
++             SL_lib_Q = SL_lib_Q,
++             SL_lib_g = SL_lib_g,
++             SL_lib_adaQ = SL_lib_simple, # need to specify if for Qlevel = "cohort"
++             SL_lib_depen = SL_lib_simple, # need to specify if dependency = T
++             verbose = FALSE,
++             reservoir_name = "Mosquito")
+[1] "Fitting htmle model ======================================="
+[1] "Covariate screening ---------------------------------"
+
+Likelihood Ratio Test P-values:
+                P-value
+pre_spray_cover  0.0000
+pre_incidence    0.0000
+pre_rainfall     0.0061
+pop_size_ea      0.0000
+pre_evi          0.0000
+ea_elevation     0.0000
+surface_temp     0.0000
+
+
+Covariates selected (P<0.2):
+                     P-value
+pre_spray_cover 3.658692e-14
+pre_incidence   0.000000e+00
+pre_rainfall    6.100156e-03
+pop_size_ea     0.000000e+00
+pre_evi         1.524239e-28
+ea_elevation    0.000000e+00
+surface_temp    0.000000e+00
+[1] "===== variables excluded after lmtest ===== "
+character(0)
+[1] "===== variables excluded after sparsity check ===== "
+character(0)
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+[1] "pre_spray_cover" "pre_incidence"   "pre_rainfall"    "pop_size_ea"    
+[5] "pre_evi"         "ea_elevation"    "surface_temp"   
+
+Likelihood Ratio Test P-values:
+                         P-value
+dist_to_index            0.16960
+pop_500m                 0.00000
+pop_1km                  0.00000
+pop_2km                  0.00161
+pop_3km                  0.05637
+sex                      0.00000
+dist_hh                  0.00771
+dist_hf                  0.00000
+pop_size_cohort          0.64780
+pre_int_3000             0.00000
+pre_int_2000             0.00000
+pre_int_1000             0.00000
+pre_int_500              0.00000
+n_int_pre_recei          0.00000
+pre_int_propdiffarm_500  0.00007
+pre_int_propdiffarm_1000 0.00000
+pre_int_propdiffarm_2000 0.00000
+pre_int_propdiffarm_3000 0.00000
+age                      0.00000
+delta_age                0.00000
+delta_age.1              0.00000
+
+
+Covariates selected (P<0.2):
+                              P-value
+dist_to_index            1.695980e-01
+pop_500m                 2.446644e-16
+pop_1km                  1.559978e-14
+pop_2km                  1.611465e-03
+pop_3km                  5.636671e-02
+sex                      7.635821e-31
+dist_hh                  7.711705e-03
+dist_hf                  1.244333e-31
+pre_int_3000             1.222492e-60
+pre_int_2000             1.964183e-71
+pre_int_1000             3.336612e-68
+pre_int_500              1.124577e-29
+n_int_pre_recei          6.342379e-78
+pre_int_propdiffarm_500  6.642962e-05
+pre_int_propdiffarm_1000 4.496552e-31
+pre_int_propdiffarm_2000 7.625614e-09
+pre_int_propdiffarm_3000 3.259307e-36
+age                      1.570061e-09
+delta_age                0.000000e+00
+delta_age.1              0.000000e+00
+[1] "===== variables excluded after lmtest ===== "
+[1] "pop_size_cohort"
+[1] "===== variables excluded after sparsity check ===== "
+[1] "pre_int_propdiffarm_500"
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+ [1] "dist_to_index"            "pop_500m"                
+ [3] "pop_1km"                  "pop_2km"                 
+ [5] "pop_3km"                  "sex"                     
+ [7] "dist_hh"                  "dist_hf"                 
+ [9] "pre_int_3000"             "pre_int_2000"            
+[11] "pre_int_1000"             "pre_int_500"             
+[13] "n_int_pre_recei"          "pre_int_propdiffarm_1000"
+[15] "pre_int_propdiffarm_2000" "pre_int_propdiffarm_3000"
+[17] "age"                      "delta_age"               
+12.369 sec elapsed
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "Cohort-level covariate screening ---------------------------------"
+
+Likelihood Ratio Test P-values:
+                P-value
+pre_spray_cover 0.06163
+pre_incidence   0.03093
+pre_rainfall    0.49132
+pop_size_ea     0.54654
+pre_evi         0.80531
+ea_elevation    0.15278
+surface_temp    0.82330
+
+
+Covariates selected (P<0.2):
+                   P-value
+pre_spray_cover 0.06162656
+pre_incidence   0.03092838
+ea_elevation    0.15277631
+[1] "===== variables excluded after lmtest ===== "
+[1] "pre_rainfall" "pop_size_ea"  "pre_evi"      "surface_temp"
+[1] "===== variables excluded after sparsity check ===== "
+character(0)
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+[1] "pre_spray_cover" "pre_incidence"   "ea_elevation"   
+
+Likelihood Ratio Test P-values:
+                         P-value
+dist_to_index            0.31660
+pop_500m                 0.18000
+pop_1km                  0.73750
+pop_2km                  0.02118
+pop_3km                  0.25740
+sex                      0.10148
+dist_hh                  0.83002
+dist_hf                  0.00171
+pop_size_cohort          0.30157
+pre_int_3000             0.00001
+pre_int_2000             0.00001
+pre_int_1000             0.00002
+pre_int_500              0.00003
+n_int_pre_recei          0.00000
+pre_int_propdiffarm_500  0.16306
+pre_int_propdiffarm_1000 0.01090
+pre_int_propdiffarm_2000 0.08711
+pre_int_propdiffarm_3000 0.09942
+age                      0.00000
+delta_age                0.00000
+
+
+Covariates selected (P<0.2):
+                              P-value
+pop_500m                 1.799989e-01
+pop_2km                  2.118103e-02
+sex                      1.014755e-01
+dist_hf                  1.711727e-03
+pre_int_3000             1.161491e-05
+pre_int_2000             7.472991e-06
+pre_int_1000             1.836924e-05
+pre_int_500              2.976630e-05
+n_int_pre_recei          1.389560e-06
+pre_int_propdiffarm_500  1.630561e-01
+pre_int_propdiffarm_1000 1.090200e-02
+pre_int_propdiffarm_2000 8.711249e-02
+pre_int_propdiffarm_3000 9.942391e-02
+age                      3.657644e-10
+delta_age                7.054685e-10
+[1] "===== variables excluded after lmtest ===== "
+[1] "dist_to_index"   "pop_1km"         "pop_3km"         "dist_hh"        
+[5] "pop_size_cohort"
+[1] "===== variables excluded after sparsity check ===== "
+character(0)
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+ [1] "pop_500m"                 "pop_2km"                 
+ [3] "sex"                      "dist_hf"                 
+ [5] "pre_int_3000"             "pre_int_2000"            
+ [7] "pre_int_1000"             "pre_int_500"             
+ [9] "n_int_pre_recei"          "pre_int_propdiffarm_500" 
+[11] "pre_int_propdiffarm_1000" "pre_int_propdiffarm_2000"
+[13] "pre_int_propdiffarm_3000" "age"                     
+[15] "delta_age"               
+[1] "<20 obs per covariate for g model; creating small regression learners"
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.012, 0.01"
+[1] "updated Qbar1W, Qbar0W: 0.011, 0.011"
+9.446 sec elapsed
+> toc()
+30.972 sec elapsed
+> 
+> saveRDS(res_spillover_mosq, file = paste0(results_path, "namibia_htmle_inc_spillover_mosq_sens_spzone_2km.RDS"))
+> 
+> ## Human & mosquito---------------------------------------
+> tic()
+> set.seed(123)
+> res_spillover_hm <-  
++   run_hTMLE(df = data_hm_list$long,
++           effecttype = 'spillover',
++           Qlevel = "individual", # cohort/individual/adaptive for incidence, individual for prev
++           glevel = "cohort", # always cohort for incidence, individual for prev
++           dependency = TRUE, # TRUE if we want CIs adjusted for dependency
++           unadj_est = FALSE, # TRUE if we want a unadjusted estimate
++           y_l = 0,
++           y_u = 1,
++           covarname_g = covarname_g,    # set of names for adjustment variables
++           covarname_Q = covarname_Q,
++           SL_lib_Q = SL_lib_Q,
++           SL_lib_g = SL_lib_g,
++           SL_lib_adaQ = SL_lib_simple, # need to specify if for Qlevel = "cohort"
++           SL_lib_depen = SL_lib_simple, # need to specify if dependency = T
++           verbose = FALSE,
++           reservoir_name = "Human & mosquito",
++           Vfolds = 30)
+[1] "Fitting htmle model ======================================="
+[1] "Covariate screening ---------------------------------"
+
+Likelihood Ratio Test P-values:
+                P-value
+pre_spray_cover 0.00000
+pre_incidence   0.00000
+pre_rainfall    0.00000
+pop_size_ea     0.00000
+pre_evi         0.00000
+ea_elevation    0.00000
+surface_temp    0.09823
+
+
+Covariates selected (P<0.2):
+                      P-value
+pre_spray_cover  1.496643e-13
+pre_incidence    0.000000e+00
+pre_rainfall     0.000000e+00
+pop_size_ea      8.882287e-33
+pre_evi         1.728543e-117
+ea_elevation    4.223767e-320
+surface_temp     9.822551e-02
+[1] "===== variables excluded after lmtest ===== "
+character(0)
+[1] "===== variables excluded after sparsity check ===== "
+character(0)
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+[1] "pre_spray_cover" "pre_incidence"   "pre_rainfall"    "pop_size_ea"    
+[5] "pre_evi"         "ea_elevation"    "surface_temp"   
+
+Likelihood Ratio Test P-values:
+                         P-value
+dist_to_index            0.00190
+pop_500m                 0.00000
+pop_1km                  0.00000
+pop_2km                  0.54868
+pop_3km                  0.52784
+sex                      0.00000
+dist_hh                  0.00000
+dist_hf                  0.00000
+pop_size_cohort          0.09860
+pre_int_3000             0.00000
+pre_int_2000             0.00000
+pre_int_1000             0.00000
+pre_int_500              0.00000
+n_int_pre_recei          0.00000
+pre_int_propdiffarm_500  0.04358
+pre_int_propdiffarm_1000 0.00000
+pre_int_propdiffarm_2000 0.00000
+pre_int_propdiffarm_3000 0.00000
+age                      0.00000
+delta_age                0.00000
+delta_age.1              0.00000
+
+
+Covariates selected (P<0.2):
+                               P-value
+dist_to_index             1.900590e-03
+pop_500m                  4.271953e-15
+pop_1km                   1.541809e-07
+sex                       8.580001e-16
+dist_hh                   2.004234e-08
+dist_hf                   2.561614e-35
+pop_size_cohort           9.859559e-02
+pre_int_3000              1.878257e-37
+pre_int_2000              6.316000e-68
+pre_int_1000              6.579007e-38
+pre_int_500               1.736210e-19
+n_int_pre_recei           7.003107e-43
+pre_int_propdiffarm_500   4.358133e-02
+pre_int_propdiffarm_1000  8.006653e-18
+pre_int_propdiffarm_2000  1.470516e-10
+pre_int_propdiffarm_3000  2.039293e-06
+age                       4.529136e-11
+delta_age                2.056401e-177
+delta_age.1              2.056401e-177
+[1] "===== variables excluded after lmtest ===== "
+[1] "pop_2km" "pop_3km"
+[1] "===== variables excluded after sparsity check ===== "
+[1] "pre_int_propdiffarm_500"
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+ [1] "dist_to_index"            "pop_500m"                
+ [3] "pop_1km"                  "sex"                     
+ [5] "dist_hh"                  "dist_hf"                 
+ [7] "pop_size_cohort"          "pre_int_3000"            
+ [9] "pre_int_2000"             "pre_int_1000"            
+[11] "pre_int_500"              "n_int_pre_recei"         
+[13] "pre_int_propdiffarm_1000" "pre_int_propdiffarm_2000"
+[15] "pre_int_propdiffarm_3000" "age"                     
+[17] "delta_age"               
+6.103 sec elapsed
+[1] "Choose Qlevel ---------------------------------"
+0 sec elapsed
+[1] "Cohort-level covariate screening ---------------------------------"
+
+Likelihood Ratio Test P-values:
+                P-value
+pre_spray_cover 0.29699
+pre_incidence   0.00007
+pre_rainfall    0.04131
+pop_size_ea     0.03999
+pre_evi         0.22536
+ea_elevation    0.08653
+surface_temp    0.37102
+
+
+Covariates selected (P<0.2):
+                   P-value
+pre_incidence 6.995327e-05
+pre_rainfall  4.130664e-02
+pop_size_ea   3.999486e-02
+ea_elevation  8.652561e-02
+[1] "===== variables excluded after lmtest ===== "
+[1] "pre_spray_cover" "pre_evi"         "surface_temp"   
+[1] "===== variables excluded after sparsity check ===== "
+character(0)
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+[1] "pre_incidence" "pre_rainfall"  "pop_size_ea"   "ea_elevation" 
+
+Likelihood Ratio Test P-values:
+                         P-value
+dist_to_index            0.65764
+pop_500m                 0.12428
+pop_1km                  0.43627
+pop_2km                  0.26176
+pop_3km                  0.12281
+sex                      0.03807
+dist_hh                  0.57049
+dist_hf                  0.00247
+pop_size_cohort          0.72921
+pre_int_3000             0.00655
+pre_int_2000             0.00004
+pre_int_1000             0.00008
+pre_int_500              0.00009
+n_int_pre_recei          0.00004
+pre_int_propdiffarm_500  0.37232
+pre_int_propdiffarm_1000 0.09258
+pre_int_propdiffarm_2000 0.21034
+pre_int_propdiffarm_3000 0.68589
+age                      0.00001
+delta_age                0.00001
+
+
+Covariates selected (P<0.2):
+                              P-value
+pop_500m                 1.242752e-01
+pop_3km                  1.228090e-01
+sex                      3.807452e-02
+dist_hf                  2.468853e-03
+pre_int_3000             6.554719e-03
+pre_int_2000             3.639997e-05
+pre_int_1000             8.117225e-05
+pre_int_500              8.576009e-05
+n_int_pre_recei          3.634104e-05
+pre_int_propdiffarm_1000 9.257947e-02
+age                      1.394026e-05
+delta_age                8.617854e-06
+[1] "===== variables excluded after lmtest ===== "
+[1] "dist_to_index"            "pop_1km"                 
+[3] "pop_2km"                  "dist_hh"                 
+[5] "pop_size_cohort"          "pre_int_propdiffarm_500" 
+[7] "pre_int_propdiffarm_2000" "pre_int_propdiffarm_3000"
+[1] "===== variables excluded after sparsity check ===== "
+character(0)
+[1] "===== excluded constant variables ===== "
+character(0)
+[1] "===== variables selected in the end ===== "
+ [1] "pop_500m"                 "pop_3km"                 
+ [3] "sex"                      "dist_hf"                 
+ [5] "pre_int_3000"             "pre_int_2000"            
+ [7] "pre_int_1000"             "pre_int_500"             
+ [9] "n_int_pre_recei"          "pre_int_propdiffarm_1000"
+[11] "age"                      "delta_age"               
+[1] "hTMLE estimation ---------------------------------"
+[1] "initial Qbar1W, Qbar0W: 0.01, 0.015"
+[1] "updated Qbar1W, Qbar0W: 0.01, 0.015"
+865.51 sec elapsed
+> toc()
+875.86 sec elapsed
+> 
+> saveRDS(res_spillover_hm, file = paste0(results_path, "namibia_htmle_inc_spillover_hm_sens_spzone_2km.RDS"))
+> 
+> 
+> 
+> proc.time()
+    user   system  elapsed 
+2281.756 2300.085 1586.271 

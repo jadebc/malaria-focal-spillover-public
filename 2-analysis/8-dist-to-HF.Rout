@@ -1,0 +1,226 @@
+
+R version 4.1.0 (2021-05-18) -- "Camp Pontanezen"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> ################################################
+> # Spillover effects of reactive, focal malaria 
+> # interventions
+> 
+> # Namibia trial
+> # Assess whether incidence and prevalence are 
+> # associated with distance to health facility 
+> ################################################
+> 
+> rm(list=ls())
+> library(geosphere)
+> 
+> source(paste0(here::here(), "/0-config.R"))
+Loading required package: sp
+rgdal: version: 1.5-23, (SVN revision 1121)
+Geospatial Data Abstraction Library extensions to R successfully loaded
+Loaded GDAL runtime: GDAL 3.2.1, released 2020/12/29
+Path to GDAL shared files: /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/gdal
+GDAL binary built with GEOS: TRUE 
+Loaded PROJ runtime: Rel. 7.2.1, January 1st, 2021, [PJ_VERSION: 721]
+Path to PROJ shared files: /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/proj
+PROJ CDN enabled: FALSE
+Linking to sp version:1.4-5
+To mute warnings of possible GDAL/OSR exportToProj4() degradation,
+use options("rgdal_show_exportToProj4_warnings"="none") before loading rgdal.
+Overwritten PROJ_LIB was /Library/Frameworks/R.framework/Versions/4.1/Resources/library/rgdal/proj
+
+Attaching package: ‘lubridate’
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+
+Attaching package: ‘reshape2’
+
+The following object is masked from ‘package:tidyr’:
+
+    smiths
+
+
+Attaching package: ‘data.table’
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+The following objects are masked from ‘package:reshape2’:
+
+    dcast, melt
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:data.table’:
+
+    between, first, last
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+Registered S3 method overwritten by 'GGally':
+  method from   
+  +.gg   ggplot2
+Warning messages:
+1: package ‘ggplot2’ was built under R version 4.1.2 
+2: package ‘tidyr’ was built under R version 4.1.2 
+3: package ‘purrr’ was built under R version 4.1.2 
+4: package ‘stringr’ was built under R version 4.1.2 
+5: package ‘dplyr’ was built under R version 4.1.2 
+> 
+> # load data ------------------
+> 
+> # endline prevalence survey
+> xs_clean <- readRDS(namibia_analysis_prev)
+> 
+> # incidence datasets
+> df_long <- readRDS(namibia_df_long_path)
+> 
+> # health facility data 
+> hf <- read.csv(paste0(box_shared_path, "Datasets/Final trial data for collaborators/11_health_facilities_location.csv"))
+> hf_ll <- hf %>% dplyr::select(Longitude, Latitude)
+> hf_ids <-  hf %>% pull(FacID)
+> 
+> # calculate distance to closest health care facility ------------------
+> hh_id = xs_clean$hhid[1]
+> 
+> dist_to_hf <- function(data, id_name, id_value){
++   
++   ll = data %>% 
++     dplyr::filter(!!rlang::sym(id_name) == id_value) %>% 
++     dplyr::select(longitude, latitude) %>% 
++     distinct()
++   
++   dists <- apply(hf_ll, 1, function(x) distm(x, as.matrix(ll)))
++   
++   # save in km
++   min_dist <- dists[which.min(dists)]/1000
++   
++   out <- data.frame(min_dist_hf = min_dist) %>% 
++     mutate({{id_name}} := id_value) 
++   
++   return(out)
++ }
+> 
+> 
+> # association between prevalence and distance to closest health care facility ------------------
+> 
+> ## obtain distances for prevalence data ---
+> list_hhids <- as.list(unique(xs_clean$hhid))
+> 
+> result_prev <- lapply(list_hhids, function(x) 
++   dist_to_hf(data = xs_clean, id_name = "hhid", id_value = x)) %>% bind_rows()
+> 
+> xs_dist <- left_join(xs_clean, result_prev, by = "hhid")
+> saveRDS(xs_dist, file = paste0(namibia_clean_path, "xs_dist_to_hf.RDS"))
+> 
+> ## fit model ---
+> fit <- glm(qPCRposneg ~ min_dist_hf, data = xs_dist, family = "binomial")
+> summary(fit)
+
+Call:
+glm(formula = qPCRposneg ~ min_dist_hf, family = "binomial", 
+    data = xs_dist)
+
+Deviance Residuals: 
+    Min       1Q   Median       3Q      Max  
+-0.2991  -0.2888  -0.2664  -0.2438   2.8146  
+
+Coefficients:
+            Estimate Std. Error z value Pr(>|z|)    
+(Intercept) -3.08164    0.13264 -23.233   <2e-16 ***
+min_dist_hf -0.04926    0.02159  -2.282   0.0225 *  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 1173.5  on 3901  degrees of freedom
+Residual deviance: 1168.0  on 3900  degrees of freedom
+  (271 observations deleted due to missingness)
+AIC: 1172
+
+Number of Fisher Scoring iterations: 6
+
+> 
+> ggplot(xs_dist, aes(y=qPCRposneg, x = min_dist_hf))+
++   geom_smooth()
+`geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'
+Warning message:
+Removed 271 rows containing non-finite values (`stat_smooth()`). 
+> 
+> # association between incidence and distance to closest health care facility ------------------
+> ## obtain distances for incidence data ---
+> ## fit model ---
+> fit <- glm(indexcase ~ min_dist_hf, data = df_long, family = "binomial")
+> summary(fit)
+
+Call:
+glm(formula = indexcase ~ min_dist_hf, family = "binomial", data = df_long)
+
+Deviance Residuals: 
+    Min       1Q   Median       3Q      Max  
+-0.2039  -0.1906  -0.1728  -0.1525   3.1974  
+
+Coefficients:
+             Estimate Std. Error z value Pr(>|z|)    
+(Intercept) -3.860490   0.042952  -89.88   <2e-16 ***
+min_dist_hf -0.072853   0.007542   -9.66   <2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 12899  on 84555  degrees of freedom
+Residual deviance: 12796  on 84554  degrees of freedom
+AIC: 12800
+
+Number of Fisher Scoring iterations: 7
+
+> 
+> ggplot(df_long, aes(y=indexcase, x = min_dist_hf))+
++   stat_smooth(method = 'gam',
++               formula = y~s(x, bs= "cs", k=2)) 
+Warning message:
+In smooth.construct.cr.smooth.spec(object, data, knots) :
+  basis dimension, k, increased to minimum possible
+
+> 
+> 
+> 
+> 
+> proc.time()
+   user  system elapsed 
+ 13.233   0.509  14.206 
