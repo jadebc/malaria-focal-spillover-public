@@ -30,9 +30,6 @@ ea_shape <- read_shp(dsn = namibia_shapefile_dsn,
 #--------------------------------------------
 gr = gr_raw %>% 
   
-  # ADD: Filter on ea_actual to ensure they are in the study area!!!!
-  # waiting for brooke to clarify where this variable is 
-  
   dplyr::select(
     latitude, longitude, 
     hh_id, hh_pop,

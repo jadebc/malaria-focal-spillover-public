@@ -125,30 +125,7 @@ cov_prescreen <- function(df,
 
   }
 
-  # if (epv < 10 & family=="binomial"){
-  # 
-  #   p2 = length(nrow(df_Y)[df_Y != 0])/10
-  # 
-  #   # iteratively drop covariates to get epv to at least 10
-  #   LR_selected <- LRps[which(rownames(LRps) %in% var_selected),]
-  # 
-  #   LRdf <- data.frame(varname = names(LR_selected),
-  #                      pval = LR_selected)
-  # 
-  #   rownames(LRdf) = NULL
-  # 
-  #   LRdf = LRdf %>% arrange(pval)
-  # 
-  #   LR_new = LRdf[1:p,]
-  # 
-  #   # check EPV (number of events per variable)
-  #   p = length(LR_new$varname)
-  #   df_Y <- df %>% dplyr::select(all_of(yname))
-  #   epv = length(nrow(df_Y)[df_Y != 0])/p2
-  #   assert_that(epv>=10)
-  #   print(paste0("Dropped ",p2, " out of ",p, " covariates so that events per variable >= 10"))
-  #   
-  # }
+
   
   return(var_selected)
 }
@@ -158,34 +135,12 @@ library(tmle3)
 # Y   : outcome variable of interest
 # Ws  : data frame of candidate covariates to screen
 lasso_prescreen <- function(df, yname,covarname, family="gaussian") {
-  
-  # # define variable class
-  # df$date <- as.numeric(df$date)
-  # df$cohort_id <- as.factor(df$cohort_id)
-  # df$ea <- as.factor(df$ea)
-  # df$intarm <- as.factor(df$intarm)
-  # 
-  # df$sex <- as.character(df$sex)
-  # df$sex[is.na(df$sex)] <- "unknown"
-  # df$sex <- as.factor(df$sex)
-  # 
-  # # impute missingness
-  # nodes <- list(W = colnames(df)[-which(names(df) %in% c(yname, "intarm", "indiv_id"))],
-  #               A = "intarm",
-  #               Y = yname)
-  # df <- 
-  # process_missing(data = df,
-  #                 node_list = nodes)$data
+
   
   # define lasso learner
   lrn_lasso <- Lrnr_glmnet$new(alpha = 1)
   screen_lasso <- Lrnr_screener_coefs$new(learner = lrn_lasso, threshold = 0)
-  
-  # # specify the variables we want to keep in the data
-  # keepme <- c("cohort_id", "target_area", "int_recip", "intarm")
-  # screen_augment_lasso <- Lrnr_screener_augment$new(
-  #   screener = screen_lasso, default_covariates = keepme
-  # )
+
   
   # create the sl3 task
   screen_task <- make_sl3_Task(
@@ -214,10 +169,6 @@ lasso_prescreen <- function(df, yname,covarname, family="gaussian") {
   print("===== variables excluded from sparsity check ===== ")
   print(setdiff(covarname, var_nonsparse))
   
-  # sum(df_covar$concur_int_RO_500 !=0) / length(df_covar$concur_int_RO_500 )
-  # sum(df_covar$concur_int_RV_500 !=0) / length(df_covar$concur_int_RV_500 )
-  # sum(df_covar$pre_int_TV_500 !=0) / length(df_covar$pre_int_TV_500 )
-  
   # selected variables
   var_selected <- intersect(var_nonsparse, var_screen)
   
@@ -230,13 +181,9 @@ lasso_prescreen <- function(df, yname,covarname, family="gaussian") {
   df_Y <- df %>% dplyr::select(all_of(yname))
   epv = length(nrow(df_Y)[df_Y != 0])/p
   
-  # assert_that(epv >= 10, msg = "number of events per variable is less than 10")
-  
   if (epv < 10){
     print("Warning: number of events per variable is less than 10")
   }
-  
-  # df_screen <- df %>% dplyr::select(all_of(c(var_selected)))
   
   return(var_selected)
   

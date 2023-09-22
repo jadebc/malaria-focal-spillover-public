@@ -104,10 +104,6 @@ run_hTMLE_direct <- function(df,
         if(length(which(covarname_Q == EM_name))>0) covarname_Q = covarname_Q[-which(covarname_Q == EM_name)]
       }
       
-      ## check for positivity violations  ---------
-      # pos_data = positivity_screening(data = df, varlist = c(covarname_g, covarname_Q))
-      # nopos_cov = pos_data$covariates
-      # nopos_df = pos_data$data
       nopos_cov = c(covarname_g, covarname_Q)
       nopos_df = df
       
@@ -206,10 +202,6 @@ run_hTMLE_direct <- function(df,
     ## adjusted model workflow (cohort-level) ------------------------------
     if(!unadj_est){
       
-      ### check for positivity violations (cohort-level) ---------------------------
-      # pos_coho_data = positivity_screening(data = df_coho, varlist = c(covarname_g, covarname_Q))
-      # nopos_cov_coho = pos_coho_data$covariates
-      # nopos_coho_df = pos_coho_data$data
       nopos_cov_coho = c(covarname_g, covarname_Q)
       nopos_coho_df = df_coho
       

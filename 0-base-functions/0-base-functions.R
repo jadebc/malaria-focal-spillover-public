@@ -4,7 +4,7 @@
 
 # Documentation: format_glm
 # Usage: format_glm(data, rfit, outcome, treatment, year, adj, did, family)
-# Description: ???
+# Description: nicely format glm model output
 # Args/Options: 
 # data:                    the data used to fit GLM
 # cluster_coefficients:    coefficients and SEs adjusted for clustering
@@ -61,83 +61,6 @@ format_glm = function(data,
 
 
 
-##############################################
-##############################################
-
-get_sandwichSE = function(data, fit, ids){
-  cluster_var_cov_matrix = sandwichSE(data = data,
-                                      glm.fit = fit,
-                                      cluster_ids = ids)
-  
-  cluster_coefficients = coeftest(x = fit, vcov. = cluster_var_cov_matrix)
-  
-  res = format_glm(
-    data                 = year_age_data,
-    cluster_coefficients = cluster_coefficients,
-    outcome              = outcome,
-    treatment            = treatment,
-    year                 = year,
-    adj                  = adj,
-    did                  = did,
-    family               = family
-  )
-  
-}
-
-
-
-##############################################
-##############################################
-
-# Documentation: check_sparsity
-# Usage: check_sparsity(data, outcome, treatment, covariates)
-# Description: check a data frame for positivity violations within each 
-#                 treatment, outcome, covariate combination
-#
-# Args/Options:   
-# data:           dataset to check for sparsity
-# outcome:        the outcome column name, as a string
-# treatment:      the treatment column name, as a string
-# covariates:     covariate column name(s), as a string. 
-
-# Returns: vector of covariates (as string) that pass all checks
-# Output: prints rows of the data frame with conditional prevalence < 5%
-# that are dropped from returned covariates list
-
-check_sparsity = function(data, covariates, tolerance = 0.05){
-  
-  data = as.data.frame(data)
-  
-  assert_that(all(covariates %in% colnames(data)), 
-              msg = "Some covariates are not in the data.")
-  
-  mean_cov = lapply(as.list(covariates), function(x) 
-    mean(as.numeric(data[,x]), na.rm=TRUE))
-  names(mean_cov) = covariates
-  
-  if(!all(mean_cov > tolerance)){
-    print(paste0("Variables that have prevalence < ", 
-                 tolerance*100,
-                 "% and were removed from covariates list:"))
-    print(names(which(mean_cov <= tolerance) ))
-    covariates_returned = covariates[-which(covariates %in% names(which(mean_cov <= tolerance)))]
-    
-    if(length(grep("race",names(which(mean_cov <= tolerance))))>0){
-      # if one race level doesn't meet tolerance, 
-      # drop all race levels
-      covariates_returned = covariates_returned[-grep("race",covariates_returned)]
-      
-      print(paste0("All race categories dropped because at least one race level had prevalence < ",
-                   tolerance*100, "%"))
-    }
-    
-    
-    return(covariates_returned)
-  }
-  
-  if(all(mean_cov > tolerance)) return(covariates)
-  
-}
 
 
 sandwichSE=function (fm, cluster) 
@@ -380,33 +303,6 @@ check_washout <- function(prev_match_list, this_date, mindays = 21){
 
 
 
-# alternative way of calc unadjusted est
-# calculate raw RR
-calc_raw <- function(df){
-  df_1 <- df %>% filter(A == 1)
-  df_0 <- df %>% filter(A == 0)
-  
-  df_1_coho <- aggregate(x=df_1, by=list(id=df_1$id), hp_aggregate)[,2:(ncol(df_1)+1)]
-  df_0_coho <- aggregate(x=df_0, by=list(id=df_0$id), hp_aggregate)[,2:(ncol(df_0)+1)]
-  
-  Risk_1 = mean(df_1_coho$Y) 
-  Risk_0 = mean(df_0_coho$Y)
-  
-  RD_raw = Risk_1 - Risk_0
-  RR_raw = Risk_1 / Risk_0
-  
-  # print(max(df_1_coho$Y))
-  # print(max(df_0_coho$Y))
-  
-  return(data.frame('N_1' = nrow(df_1_coho),
-                    'N_0' = nrow(df_0_coho),
-                    'Risk_1' = Risk_1,
-                    'Risk_0' = Risk_0,
-                    'RD_raw' = RD_raw,
-                    'RR_raw' = RR_raw))
-}
-
-
 
 
 # Note that "target" overlap means purely 
@@ -557,46 +453,7 @@ positivity_screening = function(data, varlist){
               covariates = finalcovars))
 }
 
-# positivity_screening = function(data, varlist){
-#   Wdata = data %>% dplyr::select(all_of(varlist))
-#   
-#   # identify categorical variables ------------------
-#   is.categorical = function(data, varname){
-#     x = data %>% dplyr::select(!!sym(varname)) %>% pull()
-#     factor = is.factor(x)
-#     twocats = length(unique(x))<=2
-#     return(ifelse(factor | twocats, T, F))
-#   }
-#   categorical_vars = varlist[map_lgl(as.list(varlist), function(x) is.categorical(data = data, varname = x))]
-#   
-#   # identify which categorical variables have positivity violations
-#   cat_violations = lapply(as.list(categorical_vars), function(x) 
-#     check_positivity_categorical(data = data,
-#                                  varname = x)) %>% unlist()
-#   
-#   # drop covariates with violation from list
-#   keep_cat = categorical_vars[-which(categorical_vars%in% categorical_vars[cat_violations])]
-#   drop_cat = categorical_vars[which(categorical_vars%in% categorical_vars[cat_violations])]
-#   
-#   # identify continuous variables ------------------
-#   continuous_vars = varlist[!varlist %in% categorical_vars]
-#   
-#   # identify which continuous variables have positivity violations
-#   cont_violations = lapply(as.list(continuous_vars), function(x) 
-#     check_positivity_continuous(data = data,
-#                                 varname = x)) %>% unlist()
-#   cont_violation_vars = continuous_vars[which(continuous_vars%in% continuous_vars[cont_violations])]
-#   cont_noviol_vars = continuous_vars[-which(continuous_vars%in% continuous_vars[cont_violations])]
-#   
-#   if(length(keep_cat)>0){
-#     newdata = data %>% dplyr::select(all_of(cont_noviol_vars, keep_cat))
-#   }else{
-#     newdata = data %>% dplyr::select(all_of(cont_noviol_vars))
-#   }
-#     
-#   return(list(data = newdata,
-#               covariates = colnames(newdata)))
-# }
+
 
 
 

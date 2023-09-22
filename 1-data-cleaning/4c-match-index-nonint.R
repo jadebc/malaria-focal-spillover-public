@@ -350,29 +350,7 @@ for(i in 1:length(index_nonint$indexid)){
         
         View(master_pdays3 %>% 
                filter(indiv_id==matched_indiv_id))
-        # clinic_day_match = master_pdays3 %>% 
-        #   filter(indiv_id==matched_indiv_id & date == clinic_date_index) %>% nrow() ==1
-        # 
-        # 
-        # # if clinic and visit days are unassigned for this person, proceed with match
-        # if(clinic_day_match){
-        #   
-        #   print("Successful match")
-        #   person_match = master_pdays3 %>% 
-        #     filter(indiv_id==matched_indiv_id & (date == clinic_date_index))
-        #   
-        #   break
-        #   
-        #   # if clinic or visit days not available, find next closest person 
-        # }else{
-        #   temp_msg ="These dates not available for this person; find next nearest person"
-        #   print(temp_msg)
-        #   reason_msg = paste0(reason_msg, temp_msg)
-        #   people_ea = people_ea[people_ea$indiv_id != matched_indiv_id,]
-        #   person_match = NULL
-        #   
-        # }
-        
+
         # end of check for previous match 
       }
       
@@ -383,19 +361,7 @@ for(i in 1:length(index_nonint$indexid)){
   
   
   if(!is.null(person_match)){
-    # TEMPORARY for debugging
-    # print("this_id_df----")
-    # print(this_id_df)
-    # print("master_person----")
-    # print( people_ea %>% filter(indiv_id==matched_indiv_id))
-    # print("master_pdays3----")
-    # print( master_pdays3 %>% 
-    #          filter(indiv_id==matched_indiv_id & (date == clinic_date_index)))
-    # 
-    # print("person_match----")
-    # print(person_match)
-    
-    
+
     person_match = person_match %>% 
       mutate(
         indexid = this_id_df$indexid,

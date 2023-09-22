@@ -35,17 +35,11 @@ fit_indiv_glm = function(data, effecttype, covarname, unadj_est=F){
     # Step 1. screening
     if(!unadj_est){
       
-      # check for positivity violations
-      # cov_nopos = positivity_screening(data = df, varlist = covarname)
-      # dmodel = cov_nopos$data %>%
-      #   dplyr::select(all_of(c("Y", "A", "id", cov_nopos$covariates))) %>%
-      #   droplevels()
       dmodel = df %>% droplevels()
       
       print("Covariate screening ---------------------------------")
       tic()
       df_Y = dmodel$Y
-      # df_Ws = dmodel[,c(cov_nopos$covariates)]
       df_Ws = dmodel[,c(covarname)]
       
       res_screen <- cov_prescreen(
@@ -53,7 +47,6 @@ fit_indiv_glm = function(data, effecttype, covarname, unadj_est=F){
                                   Y = df_Y,
                                   Ws = df_Ws,
                                   yname = 'Y',
-                                  # covarname = cov_nopos$covariates, 
                                   covarname = covarname,
                                   family="binomial", 
                                   pval=0.2, 

@@ -180,8 +180,6 @@ for(i in 1:length(unique(intervention$id))){
             person_match_int = NULL
           }else{
             
-          
-          ### HERE
           is_int_match <- nrow(master_pdays2 %>% 
                                  filter(indiv_id == matched_indiv_id & !is.na(interventionid))) != 0
           
@@ -194,8 +192,7 @@ for(i in 1:length(unique(intervention$id))){
           # if a previous int match exists, check sha_id
           if (is_int_match & this_sha_id != candid_sha_id){
             print("Different sha_id.")
-            # print(paste0("this_sha_id", this_sha_id))
-            # print(paste0("candid_sha_id", candid_sha_id))
+
             reason_msg = paste0(reason_msg, "Different sha_id.")
             
             index <- master_ppl2_loop$indiv_id != matched_indiv_id

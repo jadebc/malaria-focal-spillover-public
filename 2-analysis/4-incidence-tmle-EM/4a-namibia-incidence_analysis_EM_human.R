@@ -57,7 +57,7 @@ for(i in c(1:length(data_human_short_list_em))){
   set.seed(123)
   fit <- run_hTMLE(df = data_human_short_list_em[[i]],
                    effecttype = 'spillover',
-                   Qlevel = "individual", # cohort/individual/adaptive for incidence, individual for prev
+                   Qlevel = "cohort", # cohort/individual/adaptive for incidence, individual for prev
                    glevel = "cohort", # always cohort for incidence, individual for prev
                    dependency = TRUE, # TRUE if we want CIs adjusted for dependency
                    unadj_est = FALSE, # TRUE if we want a unadjusted estimate

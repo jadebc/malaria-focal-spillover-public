@@ -137,8 +137,6 @@ intervention_clean = intervention_clean %>% filter(!is.na(longitude_int) &
 intervention_clean$sha_id <- 0
 count_link <- 0
 
-# View(intervention_clean %>%  filter(id %in% c(6011, 8223, 8224, 8225)))
-
 for (i in 1:nrow(intervention_clean)){
   cat("loop", i, "\n")
   
@@ -157,14 +155,6 @@ for (i in 1:nrow(intervention_clean)){
   
   # candidates are those with same age, sex, 
   # but different iid_combined and outside the wash-out period
-  # other_df <- intervention_clean %>% 
-  #                 filter((age >= this_df$age - 1) & 
-  #                 (age <= this_df$age + 1) &
-  #                 sex == this_df$sex &
-  #                 iid_combined != this_iid_comb &
-  #                 (start_date_int >= this_date + 28 |
-  #                 start_date_int <= this_date - 28))
-  
   other_df <- intervention_clean %>% 
     filter((((start_date_int < this_date) & 
               (age <= this_df$age) & 
@@ -235,12 +225,6 @@ for (i in 1:nrow(intervention_clean)){
   }
 }
 
-temp <- intervention_clean %>% filter(sha_id != 0)
-# 
-temp2 <- temp %>%
-  group_by(sha_id) %>%
-  mutate(occurrences = n()) %>%
-  ungroup()
 
 #--------------------------------------------
 # save clean intervention data

@@ -54,6 +54,7 @@ Registered S3 method overwritten by 'GGally':
   +.gg   ggplot2
 > 
 > source(paste0(here::here(), "/0-config.R"))
+* The library is already synchronized with the lockfile.
 Loading required package: sp
 Please note that rgdal will be retired by the end of 2023,
 plan transition to sf/stars/terra functions using GDAL and PROJ
@@ -179,4 +180,4 @@ There were 50 or more warnings (use warnings() to see the first 50)
 > 
 > proc.time()
    user  system elapsed 
- 55.397   7.133  39.502 
+ 73.696   9.943  66.991 

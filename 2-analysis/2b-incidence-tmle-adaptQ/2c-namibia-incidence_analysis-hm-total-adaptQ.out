@@ -54,6 +54,7 @@ Registered S3 method overwritten by 'GGally':
   +.gg   ggplot2
 > 
 > source(paste0(here::here(), "/0-config.R"))
+* The library is already synchronized with the lockfile.
 Loading required package: sp
 Please note that rgdal will be retired by the end of 2023,
 plan transition to sf/stars/terra functions using GDAL and PROJ
@@ -180,175 +181,170 @@ The following objects are masked from ‘package:base’:
 
 
 Likelihood Ratio Test P-values:
-                             P-value
-dist_to_index                0.00670
-pop_500m_cat                 0.00000
-pop_1km_cat                  0.00004
-pop_2km_cat                  0.00000
-pop_3km_cat                  0.03861
-sex                          0.00000
-dist_hh_cat                  0.00000
-dist_hf_cat                  0.00000
-pop_size_cohort_cat          0.00000
-Ntx_cat                      0.00067
-tx_cov_cohort_cat            0.00001
-high_season                  0.00008
-prop_prev_tx_cat             0.00000
-pre_int_3000_cat             0.00003
-pre_int_2000_cat             0.00000
-pre_int_1000_cat             0.00000
-pre_int_500_cat              0.00000
-n_int_pre_recei              0.00000
-pre_int_propdiffarm_500_cat  0.00020
-pre_int_propdiffarm_1000_cat 0.00000
-pre_int_propdiffarm_2000     0.00003
-pre_int_propdiffarm_3000_cat 0.03047
-delta_age                    0.00000
-age                          0.00026
-delta_response_time          0.98340
-response_time_cat            0.00000
-delta_age.1                  0.00000
-delta_response_time.1        0.98340
-delta_dist_index_quant       0.71121
+                         P-value
+dist_to_index            0.00670
+pop_500m                 0.00065
+pop_1km                  0.00000
+pop_2km                  0.00726
+pop_3km                  0.83917
+sex                      0.00000
+dist_hh                  0.00013
+dist_hf                  0.00000
+pop_size_cohort          0.12076
+Ntx                      0.00007
+tx_cov_cohort            0.40013
+high_season              0.00008
+prop_prev_tx             0.00000
+pre_int_3000             0.00000
+pre_int_2000             0.00000
+pre_int_1000             0.00000
+pre_int_500              0.00000
+n_int_pre_recei          0.00000
+pre_int_propdiffarm_500  0.01784
+pre_int_propdiffarm_1000 0.00000
+pre_int_propdiffarm_2000 0.00003
+pre_int_propdiffarm_3000 0.02826
+age                      0.00026
+delta_age                0.00000
+response_time            0.00000
+delta_response_time      0.98340
+delta_age.1              0.00000
+delta_response_time.1    0.98340
+delta_dist_index_quant   0.71121
 
 
 Covariates selected (P<0.2):
-                                   P-value
-dist_to_index                 6.701568e-03
-pop_500m_cat                  1.868329e-08
-pop_1km_cat                   3.990794e-05
-pop_2km_cat                   3.637881e-15
-pop_3km_cat                   3.861198e-02
-sex                           9.064016e-07
-dist_hh_cat                   6.427908e-18
-dist_hf_cat                   2.131399e-45
-pop_size_cohort_cat           3.383094e-12
-Ntx_cat                       6.665584e-04
-tx_cov_cohort_cat             9.592319e-06
-high_season                   7.572105e-05
-prop_prev_tx_cat              1.927136e-64
-pre_int_3000_cat              2.878349e-05
-pre_int_2000_cat              7.389598e-17
-pre_int_1000_cat              7.213280e-41
-pre_int_500_cat               8.260964e-09
-n_int_pre_recei               6.502723e-48
-pre_int_propdiffarm_500_cat   2.034457e-04
-pre_int_propdiffarm_1000_cat  2.644261e-30
-pre_int_propdiffarm_2000      2.998993e-05
-pre_int_propdiffarm_3000_cat  3.047227e-02
-delta_age                    2.555208e-101
-age                           2.562588e-04
-response_time_cat             2.137396e-47
-delta_age.1                  2.555208e-101
+                               P-value
+dist_to_index             6.701568e-03
+pop_500m                  6.497688e-04
+pop_1km                   2.867034e-06
+pop_2km                   7.264199e-03
+sex                       9.064016e-07
+dist_hh                   1.347367e-04
+dist_hf                   3.970241e-38
+pop_size_cohort           1.207616e-01
+Ntx                       7.261121e-05
+high_season               7.572105e-05
+prop_prev_tx              1.908664e-74
+pre_int_3000              9.980915e-13
+pre_int_2000              8.159901e-27
+pre_int_1000              2.410728e-55
+pre_int_500               1.111231e-27
+n_int_pre_recei           6.502723e-48
+pre_int_propdiffarm_500   1.783577e-02
+pre_int_propdiffarm_1000  4.119654e-21
+pre_int_propdiffarm_2000  2.998993e-05
+pre_int_propdiffarm_3000  2.825695e-02
+age                       2.562588e-04
+delta_age                2.555208e-101
+response_time             7.474941e-51
+delta_age.1              2.555208e-101
 [1] "===== variables excluded after lmtest ===== "
-[1] "delta_response_time"    "delta_dist_index_quant"
+[1] "pop_3km"                "tx_cov_cohort"          "delta_response_time"   
+[4] "delta_dist_index_quant"
 [1] "===== variables excluded after sparsity check ===== "
-character(0)
+[1] "pre_int_propdiffarm_500"
 [1] "===== excluded constant variables ===== "
 character(0)
 [1] "===== variables selected in the end ===== "
- [1] "dist_to_index"                "pop_500m_cat"                
- [3] "pop_1km_cat"                  "pop_2km_cat"                 
- [5] "pop_3km_cat"                  "sex"                         
- [7] "dist_hh_cat"                  "dist_hf_cat"                 
- [9] "pop_size_cohort_cat"          "Ntx_cat"                     
-[11] "tx_cov_cohort_cat"            "high_season"                 
-[13] "prop_prev_tx_cat"             "pre_int_3000_cat"            
-[15] "pre_int_2000_cat"             "pre_int_1000_cat"            
-[17] "pre_int_500_cat"              "n_int_pre_recei"             
-[19] "pre_int_propdiffarm_500_cat"  "pre_int_propdiffarm_1000_cat"
-[21] "pre_int_propdiffarm_2000"     "pre_int_propdiffarm_3000_cat"
-[23] "delta_age"                    "age"                         
-[25] "response_time_cat"           
-7.091 sec elapsed
+ [1] "dist_to_index"            "pop_500m"                
+ [3] "pop_1km"                  "pop_2km"                 
+ [5] "sex"                      "dist_hh"                 
+ [7] "dist_hf"                  "pop_size_cohort"         
+ [9] "Ntx"                      "high_season"             
+[11] "prop_prev_tx"             "pre_int_3000"            
+[13] "pre_int_2000"             "pre_int_1000"            
+[15] "pre_int_500"              "n_int_pre_recei"         
+[17] "pre_int_propdiffarm_1000" "pre_int_propdiffarm_2000"
+[19] "pre_int_propdiffarm_3000" "age"                     
+[21] "delta_age"                "response_time"           
+9.169 sec elapsed
 [1] "Choose Qlevel ---------------------------------"
-7340.379 sec elapsed
+4095.96 sec elapsed
 [1] "Data-adaptive Q model selection result: cohort level"
 [1] "Covariate screening ---------------------------------"
 
 Likelihood Ratio Test P-values:
-                             P-value
-dist_to_index                0.03017
-pop_500m_cat                 0.00001
-pop_1km_cat                  0.00030
-pop_2km_cat                  0.00000
-pop_3km_cat                  0.04183
-sex                          0.00017
-dist_hh_cat                  0.00000
-dist_hf_cat                  0.00000
-pop_size_cohort_cat          0.00000
-Ntx_cat                      0.00000
-tx_cov_cohort_cat            0.00000
-high_season                  0.00000
-prop_prev_tx_cat             0.00000
-pre_int_3000_cat             0.15508
-pre_int_2000_cat             0.00000
-pre_int_1000_cat             0.00000
-pre_int_500_cat              0.08992
-n_int_pre_recei              0.00000
-pre_int_propdiffarm_500_cat  0.00112
-pre_int_propdiffarm_1000_cat 0.00000
-pre_int_propdiffarm_2000     0.14498
-pre_int_propdiffarm_3000_cat 0.45447
-delta_age                    0.00000
-age                          0.01378
-delta_response_time          0.74062
-response_time_cat            0.00000
-delta_age.1                  0.00000
-delta_response_time.1        0.74062
-delta_dist_index_quant       0.83579
+                         P-value
+dist_to_index            0.03017
+pop_500m                 0.01892
+pop_1km                  0.00001
+pop_2km                  0.05417
+pop_3km                  0.37258
+sex                      0.00017
+dist_hh                  0.00000
+dist_hf                  0.00000
+pop_size_cohort          0.14311
+Ntx                      0.00000
+tx_cov_cohort            0.01058
+high_season              0.00000
+prop_prev_tx             0.00000
+pre_int_3000             0.00004
+pre_int_2000             0.00000
+pre_int_1000             0.00000
+pre_int_500              0.00000
+n_int_pre_recei          0.00000
+pre_int_propdiffarm_500  0.02530
+pre_int_propdiffarm_1000 0.00000
+pre_int_propdiffarm_2000 0.14498
+pre_int_propdiffarm_3000 0.68948
+age                      0.01378
+delta_age                0.00000
+response_time            0.00000
+delta_response_time      0.74062
+delta_age.1              0.00000
+delta_response_time.1    0.74062
+delta_dist_index_quant   0.83579
 
 
 Covariates selected (P<0.2):
-                                  P-value
-dist_to_index                3.016787e-02
-pop_500m_cat                 7.407509e-06
-pop_1km_cat                  2.962490e-04
-pop_2km_cat                  2.640554e-09
-pop_3km_cat                  4.183117e-02
-sex                          1.743764e-04
-dist_hh_cat                  2.083069e-17
-dist_hf_cat                  2.757048e-37
-pop_size_cohort_cat          2.393910e-09
-Ntx_cat                      4.896412e-06
-tx_cov_cohort_cat            3.169764e-07
-high_season                  4.749627e-11
-prop_prev_tx_cat             2.745357e-28
-pre_int_3000_cat             1.550829e-01
-pre_int_2000_cat             3.655304e-07
-pre_int_1000_cat             1.802484e-17
-pre_int_500_cat              8.992467e-02
-n_int_pre_recei              2.922296e-28
-pre_int_propdiffarm_500_cat  1.123711e-03
-pre_int_propdiffarm_1000_cat 2.121658e-21
-pre_int_propdiffarm_2000     1.449827e-01
-delta_age                    8.447166e-69
-age                          1.377963e-02
-response_time_cat            1.592597e-29
-delta_age.1                  8.447166e-69
+                              P-value
+dist_to_index            3.016787e-02
+pop_500m                 1.892302e-02
+pop_1km                  8.565672e-06
+pop_2km                  5.416715e-02
+sex                      1.743764e-04
+dist_hh                  9.047109e-07
+dist_hf                  1.582706e-28
+pop_size_cohort          1.431065e-01
+Ntx                      5.336707e-09
+tx_cov_cohort            1.057509e-02
+high_season              4.749627e-11
+prop_prev_tx             5.555811e-30
+pre_int_3000             3.769289e-05
+pre_int_2000             4.199043e-12
+pre_int_1000             2.478703e-28
+pre_int_500              1.303845e-12
+n_int_pre_recei          2.922296e-28
+pre_int_propdiffarm_500  2.530421e-02
+pre_int_propdiffarm_1000 2.290319e-16
+pre_int_propdiffarm_2000 1.449827e-01
+age                      1.377963e-02
+delta_age                8.447166e-69
+response_time            6.322941e-30
+delta_age.1              8.447166e-69
 [1] "===== variables excluded after lmtest ===== "
-[1] "pre_int_propdiffarm_3000_cat" "delta_response_time"         
-[3] "delta_dist_index_quant"      
+[1] "pop_3km"                  "pre_int_propdiffarm_3000"
+[3] "delta_response_time"      "delta_dist_index_quant"  
 [1] "===== variables excluded after sparsity check ===== "
-character(0)
+[1] "pre_int_propdiffarm_500"
 [1] "===== excluded constant variables ===== "
 character(0)
 [1] "===== variables selected in the end ===== "
- [1] "dist_to_index"                "pop_500m_cat"                
- [3] "pop_1km_cat"                  "pop_2km_cat"                 
- [5] "pop_3km_cat"                  "sex"                         
- [7] "dist_hh_cat"                  "dist_hf_cat"                 
- [9] "pop_size_cohort_cat"          "Ntx_cat"                     
-[11] "tx_cov_cohort_cat"            "high_season"                 
-[13] "prop_prev_tx_cat"             "pre_int_3000_cat"            
-[15] "pre_int_2000_cat"             "pre_int_1000_cat"            
-[17] "pre_int_500_cat"              "n_int_pre_recei"             
-[19] "pre_int_propdiffarm_500_cat"  "pre_int_propdiffarm_1000_cat"
-[21] "pre_int_propdiffarm_2000"     "delta_age"                   
-[23] "age"                          "response_time_cat"           
-5.203 sec elapsed
+ [1] "dist_to_index"            "pop_500m"                
+ [3] "pop_1km"                  "pop_2km"                 
+ [5] "sex"                      "dist_hh"                 
+ [7] "dist_hf"                  "pop_size_cohort"         
+ [9] "Ntx"                      "tx_cov_cohort"           
+[11] "high_season"              "prop_prev_tx"            
+[13] "pre_int_3000"             "pre_int_2000"            
+[15] "pre_int_1000"             "pre_int_500"             
+[17] "n_int_pre_recei"          "pre_int_propdiffarm_1000"
+[19] "pre_int_propdiffarm_2000" "age"                     
+[21] "delta_age"                "response_time"           
+7.092 sec elapsed
 [1] "Choose Qlevel ---------------------------------"
-7241.867 sec elapsed
+3819.306 sec elapsed
 [1] "Data-adaptive Q model selection result: cohort level"
 > 
 > names(res_total_hm) = c("Long","Short")
@@ -358,5 +354,5 @@ character(0)
 > 
 > 
 > proc.time()
-    user   system  elapsed 
-19693.48 13652.82 14604.14 
+     user    system   elapsed 
+11754.565 13523.594  7943.712 

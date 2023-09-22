@@ -145,27 +145,6 @@ do_hTMLE <- function(df,
   # the number of cohorts
   n_coho <- length(unique(df$id))
 
-  # # cohort level data df_coho
-  # if (Qlevel=="cohort"){
-  #   if (length(unique(df$Y)) > 2){
-  #     # transform Y if Y is continuous
-  #     df$Y = (df$Y - y_l) / (y_u - y_l)
-  #   }else{
-  #     # identity transform (no transform) if Y is binary
-  #     y_u = 1
-  #     y_l = 0
-  #   }
-  #   df_coho = df
-  # }else{
-  #   # if Q level is individual, make cohort level data for g estimation
-  #   df_coho <- aggregate(x = df,
-  #                        by = list(id=df$id),
-  #                        hp_aggregate)[,2:(ncol(df)+1)]
-  #   
-  #   # transform Y on cohort level since it is continuous
-  #   df_coho$Y = (df_coho$Y - y_l) / (y_u - y_l)
-  # }
-
 
   if (unadj_est){
     SL_lib_Q = make_learner(Lrnr_glm)
@@ -203,14 +182,10 @@ do_hTMLE <- function(df,
   Qbar1W <- df_Q$Qbar1W
   Qbar0W <- df_Q$Qbar0W
   
-  # print(paste0("initial Qbar1W, Qbar0W: ", mean(Qbar1W),", ", mean(Qbar0W)))
-  
-  # bound pred above 0 ## TEMP!!!
+  # bound pred above 0 
   QbarAW<- pmax(QbarAW, 10^(-20))
   Qbar1W<- pmax(Qbar1W, 10^(-20))
   Qbar0W<- pmax(Qbar0W, 10^(-20))
-  
-  # print(paste0("initial bounded Qbar1W, Qbar0W: ", mean(Qbar1W),", ", mean(Qbar0W)))
   
   # 1.2. fit g .................................
   if (glevel == "cohort"){
@@ -265,7 +240,6 @@ do_hTMLE <- function(df,
   IC1 <- (df_coho$A/g_hat)*(df_coho$Y - QbarAW_star) + Qbar1W_star - TSM1
   IC0 <- ((1-df_coho$A)/(1-g_hat))*(df_coho$Y - QbarAW_star) + Qbar0W_star - TSM0
   
-  # IC_RD <- H_AW*(df_coho$Y - QbarAW_star) + Qbar1W_star - Qbar0W_star - RD_tmle
   IC_RD <- IC1 - IC0
   IC_logRR <- IC1/TSM1 - IC0/TSM0
   
@@ -306,9 +280,7 @@ do_hTMLE <- function(df,
   res_CI_RR_uadj <- exp(res_CI_logRR_uadj)
   
   # transform RD back ## TEMP
-  # print(TSM1)
   TSM1 = TSM1*(y_u - y_l) + y_l
-  # print(TSM1)
   TSM0 = TSM0*(y_u - y_l) + y_l
   RD_tmle = TSM1 - TSM0
   res_CI_RD$CI_l <- (y_u - y_l)*res_CI_RD$CI_l

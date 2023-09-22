@@ -105,15 +105,13 @@ choose_Qlevel <- function(df,
         if(length(which(covarname_Q == EM_name))>0) covarname_Q = covarname_Q[-which(covarname_Q == EM_name)]
       }
       
-      ## check for positivity violations  ---------
-      pos_data = positivity_screening(data = df, varlist = c(covarname_g, covarname_Q))
-      nopos_cov = pos_data$covariates
-      nopos_df = pos_data$data
+      nopos_cov = c(covarname_g, covarname_Q)
+      nopos_df = df
       
       covar_selected_g <- apply(as.data.frame(covarname_g), 1, 
-                                function(x) pos_data$covariates[grep(x, pos_data$covariates)]) %>% unlist()
+                             function(x) nopos_cov[grep(x, nopos_cov)]) %>% unlist()
       covar_nopos_Q <- apply(as.data.frame(covarname_Q), 1, 
-                             function(x) pos_data$covariates[grep(x, pos_data$covariates)]) %>% unlist()
+                             function(x) nopos_cov[grep(x, nopos_cov)]) %>% unlist()
       
       
       ## covariate screening  ---------
@@ -145,7 +143,6 @@ choose_Qlevel <- function(df,
     
     ## adaptively choose individual vs. cohort level data  -----------------
     print("Choose Qlevel ---------------------------------")
-    # tic()
 
     # data-adaptively choose Q model
     if(!unadj_est){
@@ -172,8 +169,6 @@ choose_Qlevel <- function(df,
     
     print(paste0('Data-adaptive Q model selection result: ',
                  Qlevel, " level"))
-    
-    # toc()
     
     return(Qlevel)
     

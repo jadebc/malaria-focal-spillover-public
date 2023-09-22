@@ -82,7 +82,7 @@ make_plot <- function(data, parameter_name){
     scale_y_continuous(trans = "log10",
                        breaks = c(0.02, 0.1,0.3, 0.6, 1,  2, 4, 8, 16),
                        labels = c("0.02", "0.1","0.3","0.6", "1", "2","4","8","16"),
-                       limits = c(0.02, 16)) +
+                       limits = c(-0.1, 16)) +
     scale_color_manual(values = c("#119E57","#DE9D03","#128BCB")) +
   scale_shape_manual(values = c(19,1, 15, 17)) +
   coord_flip() + 
